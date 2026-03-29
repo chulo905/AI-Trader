@@ -214,22 +214,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Right: market pulse + AI Pilot */}
           <div className="flex items-center gap-4">
-            {movers?.gainers?.filter(g => g.changePercent > 0)?.[0] && (() => { const g = movers.gainers.filter(x => x.changePercent > 0)[0]; return (
+            {(() => { const g = movers?.gainers?.find(x => x.changePercent > 0); return g ? (
               <div className="hidden md:flex items-center gap-1.5 text-xs">
                 <span className="text-bullish/40">▲</span>
                 <span className="font-mono font-semibold text-bullish tabular-nums">
                   {g.symbol} +{g.changePercent.toFixed(1)}%
                 </span>
               </div>
-            ); })()}
-            {movers?.losers?.filter(l => l.changePercent < 0)?.[0] && (() => { const l = movers.losers.filter(x => x.changePercent < 0)[0]; return (
+            ) : null; })()}
+            {(() => { const l = movers?.losers?.find(x => x.changePercent < 0); return l ? (
               <div className="hidden md:flex items-center gap-1.5 text-xs">
                 <span className="text-bearish/40">▼</span>
                 <span className="font-mono font-semibold text-bearish tabular-nums">
                   {l.symbol} {l.changePercent.toFixed(1)}%
                 </span>
               </div>
-            ); })()}
+            ) : null; })()}
             <div className="w-px h-4 bg-border hidden md:block" />
             <Link href="/autopilot">
               <button className="flex items-center gap-1.5 h-7 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-all">
