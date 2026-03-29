@@ -1,6 +1,7 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { getHistory, getSingleQuote } from "./tradersage";
 import { computeIndicators, interpretIndicators, type OHLCVBar } from "./technicals";
+import { computeExtendedIndicators, interpretExtendedIndicators } from "./indicators-extended";
 
 const analysisCache = new Map<string, { data: object; expiresAt: number }>();
 const pendingAnalysis = new Set<string>();
@@ -22,13 +23,14 @@ export async function generateAnalysis(symbol: string, timeframe: string) {
     time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
   }));
   const indicators = computeIndicators(bars);
+  const extended = computeExtendedIndicators(bars);
 
   if (!pendingAnalysis.has(cacheKey)) {
     pendingAnalysis.add(cacheKey);
-    runLLMInBackground(symbol, timeframe, cacheKey, quote, indicators);
+    runLLMInBackground(symbol, timeframe, cacheKey, quote, indicators, extended);
   }
 
-  return buildFallbackAnalysis(symbol, timeframe, quote, indicators);
+  return buildFallbackAnalysis(symbol, timeframe, quote, indicators, extended);
 }
 
 async function runLLMInBackground(
@@ -36,9 +38,11 @@ async function runLLMInBackground(
   timeframe: string,
   cacheKey: string,
   quote: { price: number; changePercent: number },
-  indicators: ReturnType<typeof computeIndicators>
+  indicators: ReturnType<typeof computeIndicators>,
+  extended: ReturnType<typeof computeExtendedIndicators>
 ) {
   const indicatorSummary = interpretIndicators(indicators, quote.price);
+  const extendedSummary = interpretExtendedIndicators(extended, quote.price);
 
   const prompt = `You are a professional quantitative analyst generating a technical analysis report for a trading terminal. Analyze the following data and return a structured JSON object.
 
@@ -49,6 +53,9 @@ TIMEFRAME: ${timeframe}
 
 TECHNICAL INDICATORS (computed from real OHLCV data):
 ${indicatorSummary}
+
+EXTENDED INDICATORS:
+${extendedSummary || "Insufficient data for extended indicators"}
 
 RAW INDICATOR VALUES:
 - RSI(14): ${indicators.rsi14 ?? "insufficient data"}
@@ -62,6 +69,13 @@ RAW INDICATOR VALUES:
 - Volume Ratio (5d vs 15d): ${indicators.volumeRatio ?? "N/A"}x
 - 52W High: $${indicators.highOf52w ?? "N/A"} (${indicators.pctFromHigh !== null ? indicators.pctFromHigh + "%" : "N/A"} from high)
 - 52W Low: $${indicators.lowOf52w ?? "N/A"}
+- Stochastic %K: ${extended.stochastic?.k ?? "N/A"} / %D: ${extended.stochastic?.d ?? "N/A"}
+- Williams %R(14): ${extended.williamsR ?? "N/A"}
+- CCI(20): ${extended.cci ?? "N/A"}
+- Parabolic SAR: $${extended.parabolicSAR ?? "N/A"} (price ${extended.parabolicSAR !== null ? (quote.price > extended.parabolicSAR ? "above SAR — uptrend" : "below SAR — downtrend") : "N/A"})
+- ADX(14): ${extended.adx?.adx ?? "N/A"} (${extended.adx?.trendStrength ?? "N/A"} trend) +DI: ${extended.adx?.pdi ?? "N/A"} / -DI: ${extended.adx?.mdi ?? "N/A"}
+- OBV: ${extended.obv ?? "N/A"} (${extended.obvTrend ?? "N/A"})
+- Ichimoku Cloud: ${extended.ichimoku ? `${extended.ichimoku.aboveCloud ? "above" : "below"} cloud ($${extended.ichimoku.cloudBottom}–$${extended.ichimoku.cloudTop}), Tenkan $${extended.ichimoku.tenkan}, Kijun $${extended.ichimoku.kijun}` : "N/A"}
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -111,6 +125,7 @@ Derive key levels from Bollinger Bands, SMAs, and 52-week range. Paper trading o
       keyLevels: parsed.keyLevels ?? buildFallbackLevels(indicators, quote.price),
       signals: parsed.signals ?? buildFallbackSignals(indicators, quote.changePercent),
       indicators,
+      extended,
       generatedAt: new Date().toISOString(),
       aiPowered: true,
     };
@@ -150,7 +165,7 @@ function buildFallbackSignals(indicators: ReturnType<typeof computeIndicators>, 
   ];
 }
 
-function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>) {
+function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>, extended: ReturnType<typeof computeExtendedIndicators>) {
   const rsi = indicators.rsi14;
   const bias = rsi !== null ? (rsi > 60 ? "bullish" : rsi < 40 ? "bearish" : "neutral") : "neutral";
   const confidence = rsi !== null ? Math.min(40 + Math.abs(rsi - 50), 88) : 50;
@@ -167,6 +182,7 @@ function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price
     keyLevels: buildFallbackLevels(indicators, quote.price),
     signals: buildFallbackSignals(indicators, quote.changePercent),
     indicators,
+    extended,
     generatedAt: new Date().toISOString(),
     aiPowered: false,
   };

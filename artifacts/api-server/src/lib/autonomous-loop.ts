@@ -2,6 +2,7 @@ import { db, tradesTable, autonomousConfigTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getSingleQuote, getHistory } from "./tradersage";
 import { computeIndicators, type OHLCVBar } from "./technicals";
+import { computeExtendedIndicators } from "./indicators-extended";
 import { checkRisk, enforceStopLosses } from "./risk-manager";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
@@ -28,13 +29,35 @@ export function getExecutionLog(): ExecutionLogEntry[] {
   return executionLog;
 }
 
-function scoreDecision(rsi: number | null, macdHist: number | null, sma50Pct: number | null, changePercent: number): number {
+function scoreDecision(
+  rsi: number | null,
+  macdHist: number | null,
+  sma50Pct: number | null,
+  changePercent: number,
+  extended?: ReturnType<typeof computeExtendedIndicators>
+): number {
   let score = 0;
   if (rsi !== null) score += rsi > 60 ? 2 : rsi < 40 ? -2 : 0;
   if (macdHist !== null) score += macdHist > 0 ? 2 : -2;
   if (sma50Pct !== null) score += sma50Pct > 0 ? 1 : -1;
   if (changePercent > 1.5) score += 1;
   if (changePercent < -1.5) score -= 1;
+
+  if (extended) {
+    if (extended.adx?.adx !== null && extended.adx?.adx !== undefined) {
+      if (extended.adx.adx >= 25) {
+        const bullishDI = (extended.adx.pdi ?? 0) > (extended.adx.mdi ?? 0);
+        score += bullishDI ? 1 : -1;
+      }
+    }
+    if (extended.stochastic?.k !== null && extended.stochastic?.k !== undefined) {
+      const k = extended.stochastic.k;
+      const d = extended.stochastic.d ?? k;
+      if (k <= 20 && k > d) score += 1;
+      else if (k >= 80 && k < d) score -= 1;
+    }
+  }
+
   return score;
 }
 
@@ -76,7 +99,8 @@ async function processSymbol(config: typeof autonomousConfigTable.$inferSelect) 
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const indicators = computeIndicators(bars);
-    const score = scoreDecision(indicators.rsi14, indicators.macd?.histogram ?? null, indicators.priceVsSma50, quote.changePercent);
+    const extended = computeExtendedIndicators(bars);
+    const score = scoreDecision(indicators.rsi14, indicators.macd?.histogram ?? null, indicators.priceVsSma50, quote.changePercent, extended);
     const rawAction = score >= 3 ? "BUY" : score <= -3 ? "SELL" : "HOLD";
     const currentPrices: Record<string, number> = { [symbol]: quote.price };
 
