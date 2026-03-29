@@ -6,6 +6,22 @@ import { Link } from "wouter";
 import { Sparkles, TrendingUp, TrendingDown, Activity, ArrowRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function DataDelayBadge({ dataDelay }: { dataDelay?: string }) {
+  if (!dataDelay || dataDelay === "realtime") return null;
+  if (dataDelay === "mock") {
+    return (
+      <span className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold font-mono uppercase tracking-wider bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+        SIM
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold font-mono uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30">
+      DELAYED
+    </span>
+  );
+}
+
 const QUICK_SYMBOLS = ["AAPL", "NVDA", "TSLA", "MSFT", "META", "AMD", "SPY", "BTC"];
 
 export default function Dashboard() {
@@ -66,7 +82,10 @@ export default function Dashboard() {
         {/* Market Movers */}
         <Card>
           <CardHeader>
-            <CardTitle>Market Movers</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Market Movers
+              <DataDelayBadge dataDelay={(movers as unknown as { dataDelay?: string })?.dataDelay} />
+            </CardTitle>
             <Link href="/discover" className="text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors">See all →</Link>
           </CardHeader>
           <CardContent className="p-0">

@@ -101,6 +101,22 @@ function clearOverlaySeries(chart: IChartApi, series: OverlaySeries) {
   if (series.rsi) { chart.removeSeries(series.rsi); series.rsi = null; }
 }
 
+function DataDelayBadge({ dataDelay }: { dataDelay?: string }) {
+  if (!dataDelay || dataDelay === "realtime") return null;
+  if (dataDelay === "mock") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold font-mono uppercase tracking-wider bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+        SIMULATED
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold font-mono uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30">
+      15-MIN DELAYED
+    </span>
+  );
+}
+
 function ChartWidget({ symbol }: { symbol: string }) {
   const [timeframe, setTimeframe] = useState<GetMarketHistoryTimeframe>('1d');
   const [period, setPeriod] = useState<GetMarketHistoryPeriod>('3M');
@@ -108,7 +124,11 @@ function ChartWidget({ symbol }: { symbol: string }) {
 
   const { data: quote } = useGetQuote(symbol, { query: { refetchInterval: 10000 } });
   const { data: historyData, isLoading, error } = useGetMarketHistory(symbol, { timeframe, period });
+  const quoteExt = quote as (typeof quote & { dataDelay?: string; isMock?: boolean }) | undefined;
+
+  const historyDataRaw = historyData as unknown as { candles: typeof historyData; isMock: boolean; dataDelay: string } | null;
   const history = Array.isArray((historyData as any)?.candles) ? (historyData as any).candles : Array.isArray(historyData) ? historyData : undefined;
+  const historyDataDelay = historyDataRaw?.dataDelay;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -312,6 +332,7 @@ function ChartWidget({ symbol }: { symbol: string }) {
             {symbol}
             {quote && <span className="font-mono text-xl">{formatPrice(quote.price)}</span>}
             {quote && <PriceChange value={quote.changePercent} className="text-lg" />}
+            <DataDelayBadge dataDelay={quoteExt?.dataDelay} />
           </h1>
           <p className="text-sm text-muted-foreground">{quote?.name}</p>
         </div>
@@ -445,7 +466,12 @@ function ChartWidget({ symbol }: { symbol: string }) {
             Parabolic SAR
           </div>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">TradingView Lightweight Charts • Paper Trading Only</span>
+        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          {historyDataDelay && historyDataDelay !== "realtime" && (
+            <DataDelayBadge dataDelay={historyDataDelay} />
+          )}
+          TradingView Lightweight Charts • Paper Trading Only
+        </span>
       </div>
     </>
   );

@@ -1,17 +1,20 @@
-import { pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const marketDataCacheTable = pgTable("market_data_cache", {
   id: serial("id").primaryKey(),
+  cacheKey: text("cache_key").notNull().unique(),
+  dataType: text("data_type").notNull(),
   symbol: text("symbol").notNull(),
-  timeframe: text("timeframe").notNull(),
-  period: text("period").notNull(),
-  barsJson: text("bars_json").notNull(),
-  fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+  data: jsonb("data").notNull(),
+  source: text("source").notNull().default("yahoo"),
   expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
-  uniqueIndex("market_data_cache_symbol_timeframe_period_uniq").on(t.symbol, t.timeframe, t.period),
+  index("market_cache_key_idx").on(t.cacheKey),
+  index("market_cache_symbol_idx").on(t.symbol),
+  index("market_cache_expires_idx").on(t.expiresAt),
 ]);
 
 export const insertMarketDataCacheSchema = createInsertSchema(marketDataCacheTable).omit({ id: true });
