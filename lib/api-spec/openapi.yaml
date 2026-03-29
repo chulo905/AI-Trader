@@ -1,22 +1,34 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI Trading Terminal API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: market
+    description: Live market data from Trader Sage
+  - name: watchlist
+    description: Watchlist management
+  - name: portfolio
+    description: Portfolio and positions
+  - name: trades
+    description: Paper trading and trade history
+  - name: alerts
+    description: Price and signal alerts
+  - name: analysis
+    description: AI analysis and trade ideas
+  - name: settings
+    description: User settings and risk controls
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +36,469 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /market/quotes:
+    get:
+      operationId: getMarketQuotes
+      tags: [market]
+      summary: Get live quotes for multiple symbols
+      parameters:
+        - name: symbols
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of symbols
+      responses:
+        "200":
+          description: List of quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Quote"
+
+  /market/quote/{symbol}:
+    get:
+      operationId: getQuote
+      tags: [market]
+      summary: Get live quote for a single symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quote data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "404":
+          description: Symbol not found
+
+  /market/history/{symbol}:
+    get:
+      operationId: getMarketHistory
+      tags: [market]
+      summary: Get price history for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 4h, 1d]
+            default: 1d
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [1D, 5D, 1M, 3M, 6M, 1Y]
+            default: 1M
+      responses:
+        "200":
+          description: Price history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Candle"
+
+  /market/movers:
+    get:
+      operationId: getMarketMovers
+      tags: [market]
+      summary: Get top gainers, losers, and most active
+      responses:
+        "200":
+          description: Market movers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketMovers"
+
+  /market/scan:
+    get:
+      operationId: scanMarket
+      tags: [market]
+      summary: Scan for symbols matching strategy criteria
+      parameters:
+        - name: strategy
+          in: query
+          schema:
+            type: string
+            enum: [momentum, breakout, oversold, overbought, high_volume]
+            default: momentum
+      responses:
+        "200":
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScanResult"
+
+  /watchlists:
+    get:
+      operationId: getWatchlists
+      tags: [watchlist]
+      summary: Get all watchlists
+      responses:
+        "200":
+          description: All watchlists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Watchlist"
+    post:
+      operationId: createWatchlist
+      tags: [watchlist]
+      summary: Create a new watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWatchlistInput"
+      responses:
+        "201":
+          description: Created watchlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watchlist"
+
+  /watchlists/{id}:
+    put:
+      operationId: updateWatchlist
+      tags: [watchlist]
+      summary: Update a watchlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWatchlistInput"
+      responses:
+        "200":
+          description: Updated watchlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watchlist"
+    delete:
+      operationId: deleteWatchlist
+      tags: [watchlist]
+      summary: Delete a watchlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /watchlists/{id}/symbols:
+    post:
+      operationId: addWatchlistSymbol
+      tags: [watchlist]
+      summary: Add symbol to watchlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSymbolInput"
+      responses:
+        "200":
+          description: Updated watchlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watchlist"
+
+  /watchlists/{id}/symbols/{symbol}:
+    delete:
+      operationId: removeWatchlistSymbol
+      tags: [watchlist]
+      summary: Remove symbol from watchlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated watchlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watchlist"
+
+  /portfolio:
+    get:
+      operationId: getPortfolio
+      tags: [portfolio]
+      summary: Get portfolio overview
+      responses:
+        "200":
+          description: Portfolio data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Portfolio"
+
+  /portfolio/positions:
+    get:
+      operationId: getPositions
+      tags: [portfolio]
+      summary: Get open positions
+      responses:
+        "200":
+          description: Open positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Position"
+
+  /trades:
+    get:
+      operationId: getTrades
+      tags: [trades]
+      summary: Get trade history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Trade history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+    post:
+      operationId: createTrade
+      tags: [trades]
+      summary: Execute a paper trade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTradeInput"
+      responses:
+        "201":
+          description: Created trade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+
+  /trades/{id}/close:
+    post:
+      operationId: closeTrade
+      tags: [trades]
+      summary: Close an open position
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloseTradeInput"
+      responses:
+        "200":
+          description: Closed trade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+
+  /trades/stats:
+    get:
+      operationId: getTradeStats
+      tags: [trades]
+      summary: Get performance statistics
+      responses:
+        "200":
+          description: Trade statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeStats"
+
+  /alerts:
+    get:
+      operationId: getAlerts
+      tags: [alerts]
+      summary: Get all alerts
+      responses:
+        "200":
+          description: Alerts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+    post:
+      operationId: createAlert
+      tags: [alerts]
+      summary: Create a new alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertInput"
+      responses:
+        "201":
+          description: Created alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  /alerts/{id}:
+    delete:
+      operationId: deleteAlert
+      tags: [alerts]
+      summary: Delete an alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /analysis/{symbol}:
+    get:
+      operationId: getAnalysis
+      tags: [analysis]
+      summary: Get AI analysis for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 4h, 1d]
+            default: 1d
+      responses:
+        "200":
+          description: AI analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analysis"
+
+  /analysis/ideas:
+    get:
+      operationId: getTradeIdeas
+      tags: [analysis]
+      summary: Get current AI trade ideas
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Trade ideas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TradeIdea"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get user settings
+      responses:
+        "200":
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update user settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +509,608 @@ components:
       required:
         - status
 
+    Quote:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        change:
+          type: number
+        changePercent:
+          type: number
+        volume:
+          type: integer
+        avgVolume:
+          type: ["integer", "null"]
+        marketCap:
+          type: ["number", "null"]
+        high52w:
+          type: ["number", "null"]
+        low52w:
+          type: ["number", "null"]
+        dayHigh:
+          type: ["number", "null"]
+        dayLow:
+          type: ["number", "null"]
+        open:
+          type: ["number", "null"]
+        previousClose:
+          type: ["number", "null"]
+        bid:
+          type: ["number", "null"]
+        ask:
+          type: ["number", "null"]
+        pe:
+          type: ["number", "null"]
+        eps:
+          type: ["number", "null"]
+        beta:
+          type: ["number", "null"]
+        signal:
+          type: ["string", "null"]
+          description: "bullish, bearish, or neutral"
+        signalStrength:
+          type: ["number", "null"]
+          description: "0-100 confidence score"
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - symbol
+        - name
+        - price
+        - change
+        - changePercent
+        - volume
+        - updatedAt
+
+    Candle:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        volume:
+          type: integer
+      required:
+        - time
+        - open
+        - high
+        - low
+        - close
+        - volume
+
+    MarketMovers:
+      type: object
+      properties:
+        gainers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Quote"
+        losers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Quote"
+        mostActive:
+          type: array
+          items:
+            $ref: "#/components/schemas/Quote"
+      required:
+        - gainers
+        - losers
+        - mostActive
+
+    ScanResult:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        changePercent:
+          type: number
+        volume:
+          type: integer
+        score:
+          type: number
+        signal:
+          type: string
+        reason:
+          type: string
+      required:
+        - symbol
+        - name
+        - price
+        - changePercent
+        - volume
+        - score
+        - signal
+        - reason
+
+    Watchlist:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        symbols:
+          type: array
+          items:
+            type: string
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - symbols
+        - isDefault
+        - createdAt
+        - updatedAt
+
+    CreateWatchlistInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        symbols:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+
+    UpdateWatchlistInput:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        symbols:
+          type: ["array", "null"]
+          items:
+            type: string
+
+    AddSymbolInput:
+      type: object
+      properties:
+        symbol:
+          type: string
+      required:
+        - symbol
+
+    Portfolio:
+      type: object
+      properties:
+        accountSize:
+          type: number
+        cash:
+          type: number
+        equity:
+          type: number
+        totalPnl:
+          type: number
+        todayPnl:
+          type: number
+        openPositions:
+          type: integer
+        totalTrades:
+          type: integer
+        winRate:
+          type: number
+        avgGain:
+          type: number
+        avgLoss:
+          type: number
+      required:
+        - accountSize
+        - cash
+        - equity
+        - totalPnl
+        - todayPnl
+        - openPositions
+        - totalTrades
+        - winRate
+        - avgGain
+        - avgLoss
+
+    Position:
+      type: object
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        shares:
+          type: number
+        entryPrice:
+          type: number
+        currentPrice:
+          type: number
+        unrealizedPnl:
+          type: number
+        unrealizedPnlPercent:
+          type: number
+        stopLoss:
+          type: ["number", "null"]
+        takeProfit:
+          type: ["number", "null"]
+        openedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - symbol
+        - side
+        - shares
+        - entryPrice
+        - currentPrice
+        - unrealizedPnl
+        - unrealizedPnlPercent
+        - openedAt
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        shares:
+          type: number
+        entryPrice:
+          type: number
+        exitPrice:
+          type: ["number", "null"]
+        stopLoss:
+          type: ["number", "null"]
+        takeProfit:
+          type: ["number", "null"]
+        realizedPnl:
+          type: ["number", "null"]
+        realizedPnlPercent:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [open, closed]
+        notes:
+          type: ["string", "null"]
+        openedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - symbol
+        - side
+        - shares
+        - entryPrice
+        - status
+        - openedAt
+
+    CreateTradeInput:
+      type: object
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        shares:
+          type: number
+        entryPrice:
+          type: number
+        stopLoss:
+          type: ["number", "null"]
+        takeProfit:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+      required:
+        - symbol
+        - side
+        - shares
+        - entryPrice
+
+    CloseTradeInput:
+      type: object
+      properties:
+        exitPrice:
+          type: number
+        notes:
+          type: ["string", "null"]
+      required:
+        - exitPrice
+
+    TradeStats:
+      type: object
+      properties:
+        totalTrades:
+          type: integer
+        openTrades:
+          type: integer
+        closedTrades:
+          type: integer
+        winCount:
+          type: integer
+        lossCount:
+          type: integer
+        winRate:
+          type: number
+        avgGain:
+          type: number
+        avgLoss:
+          type: number
+        profitFactor:
+          type: number
+        totalRealizedPnl:
+          type: number
+        bestTrade:
+          type: ["number", "null"]
+        worstTrade:
+          type: ["number", "null"]
+        avgHoldTime:
+          type: ["number", "null"]
+          description: Average hold time in hours
+      required:
+        - totalTrades
+        - openTrades
+        - closedTrades
+        - winCount
+        - lossCount
+        - winRate
+        - avgGain
+        - avgLoss
+        - profitFactor
+        - totalRealizedPnl
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        type:
+          type: string
+          enum: [price_above, price_below, percent_change, signal_change, volume_spike]
+        value:
+          type: ["number", "null"]
+        message:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        isTriggered:
+          type: boolean
+        triggeredAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - symbol
+        - type
+        - isActive
+        - isTriggered
+        - createdAt
+
+    CreateAlertInput:
+      type: object
+      properties:
+        symbol:
+          type: string
+        type:
+          type: string
+          enum: [price_above, price_below, percent_change, signal_change, volume_spike]
+        value:
+          type: ["number", "null"]
+        message:
+          type: ["string", "null"]
+      required:
+        - symbol
+        - type
+
+    Analysis:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        bias:
+          type: string
+          enum: [bullish, bearish, neutral]
+        confidence:
+          type: number
+          description: "0-100 confidence score"
+        summary:
+          type: string
+        trend:
+          type: string
+        momentum:
+          type: string
+        volatility:
+          type: string
+        keyLevels:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyLevel"
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - symbol
+        - timeframe
+        - bias
+        - confidence
+        - summary
+        - trend
+        - momentum
+        - volatility
+        - keyLevels
+        - signals
+        - generatedAt
+
+    KeyLevel:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [support, resistance, target, stop]
+        price:
+          type: number
+        description:
+          type: ["string", "null"]
+      required:
+        - type
+        - price
+
+    Signal:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        interpretation:
+          type: string
+      required:
+        - name
+        - value
+        - interpretation
+
+    TradeIdea:
+      type: object
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        entryZone:
+          type: string
+        stopZone:
+          type: string
+        targetZone:
+          type: string
+        rationale:
+          type: string
+        confidence:
+          type: number
+        bias:
+          type: string
+          enum: [bullish, bearish, neutral]
+        riskReward:
+          type: number
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - symbol
+        - side
+        - entryZone
+        - stopZone
+        - targetZone
+        - rationale
+        - confidence
+        - bias
+        - riskReward
+        - generatedAt
+
+    UserSettings:
+      type: object
+      properties:
+        accountSize:
+          type: number
+        maxRiskPerTrade:
+          type: number
+          description: "Percentage (0-100)"
+        maxDailyLoss:
+          type: number
+          description: "Dollar amount"
+        defaultTimeframe:
+          type: string
+          enum: [1m, 5m, 15m, 1h, 4h, 1d]
+        strategyFocus:
+          type: string
+          enum: [momentum, breakout, mean_reversion, swing]
+        riskTolerance:
+          type: string
+          enum: [conservative, moderate, aggressive]
+        alertsEnabled:
+          type: boolean
+        defaultWatchlistId:
+          type: ["integer", "null"]
+      required:
+        - accountSize
+        - maxRiskPerTrade
+        - maxDailyLoss
+        - defaultTimeframe
+        - strategyFocus
+        - riskTolerance
+        - alertsEnabled
+
+    UpdateSettingsInput:
+      type: object
+      properties:
+        accountSize:
+          type: ["number", "null"]
+        maxRiskPerTrade:
+          type: ["number", "null"]
+        maxDailyLoss:
+          type: ["number", "null"]
+        defaultTimeframe:
+          type: ["string", "null"]
+          enum: [1m, 5m, 15m, 1h, 4h, 1d, "null"]
+        strategyFocus:
+          type: ["string", "null"]
+          enum: [momentum, breakout, mean_reversion, swing, "null"]
+        riskTolerance:
+          type: ["string", "null"]
+          enum: [conservative, moderate, aggressive, "null"]
+        alertsEnabled:
+          type: ["boolean", "null"]
+        defaultWatchlistId:
+          type: ["integer", "null"]

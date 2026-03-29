@@ -1,0 +1,13 @@
+packages:
+  "recharts": "Premium data visualization for financial charts"
+  "date-fns": "Date formatting for charts and history"
+  "framer-motion": "Smooth layout transitions and micro-interactions"
+  "zustand": "Global state management for selected symbol across widgets"
+  "clsx": "Class merging utility"
+  "tailwind-merge": "Tailwind class merging utility"
+  "lucide-react": "Beautiful consistent iconography"
+
+notes:
+  - Defaulting to a strictly dark terminal aesthetic via CSS root variables.
+  - Relying on @workspace/api-client-react for TanStack Query hooks.
+  - Using Zustand for cross-component global state (selectedSymbol).

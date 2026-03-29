@@ -20,77 +20,113 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server (port from PORT env)
+│   └── trading-terminal/   # React + Vite frontend (Bloomberg-style dark UI)
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/                # Utility scripts
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+├── tsconfig.json
+└── package.json
 ```
+
+## AI Trading Terminal
+
+### Purpose
+A professional Bloomberg-style dark terminal for paper trading, AI technical analysis, market data, and portfolio tracking. All data labeled as "Paper Trading / AI Analysis — Not Financial Advice."
+
+### Frontend (`artifacts/trading-terminal`)
+- React + Vite + TanStack React Query + Recharts + Framer Motion + Lucide
+- Pages: Dashboard, Watchlist, Charts, AI Analysis, Trade Ideas, Paper Trading, Portfolio, Alerts, Settings
+- Custom dark terminal theme with `bullish` (green), `bearish` (red), `neutral` (amber) color tokens
+- Dark mode always-on: colors defined in `:root` CSS variables, no toggling needed
+- State: `useAppState` (Zustand) manages `selectedSymbol` (default: "AAPL")
+
+### Backend (`artifacts/api-server`)
+- Trader Sage API integration with graceful mock data fallback (API DNS unreachable in dev)
+- All market data routes: `/api/market/quote/:symbol`, `/api/market/history/:symbol`, `/api/market/quotes`, `/api/market/movers`, `/api/market/scan`
+- Paper trading routes: `/api/portfolio`, `/api/portfolio/positions`, `/api/trades`, `/api/trades/:id/close`, `/api/trades/stats`
+- Other routes: `/api/watchlists`, `/api/alerts`, `/api/analysis/:symbol`, `/api/ideas`, `/api/settings`
+- Mock history generator: starts 5–20% below current price and mean-reverts toward it for realistic uptrend charts
+
+### Database
+- Tables: `watchlists`, `trades`, `alerts`, `settings`
+- Default data: 3 watchlists seeded (Tech Leaders: 8 symbols, Index ETFs: 5 symbols, Momentum Plays: 6 symbols), default settings row (accountSize: $100,000)
+- Schema pushed via `pnpm --filter @workspace/db run push`
+
+### Live Market Data
+- `TRADER_SAGE_API_KEY` env variable: set to enable real Trader Sage API
+- Without the key (or if unreachable), all endpoints return deterministic mock data with realistic price ranges
 
 ## TypeScript & Composite Projects
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references.
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+- **Always typecheck from root** — `pnpm run typecheck`
+- **`emitDeclarationOnly`** — only `.d.ts` files are emitted; JS is handled by esbuild/vite
+- **Project references** — packages must list dependencies in their `tsconfig.json` references
 
 ## Root Scripts
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+- `pnpm run build` — typecheck then build all packages
+- `pnpm run typecheck` — `tsc --build --emitDeclarationOnly`
 
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+Express 5 API server.
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
+- App setup: `src/app.ts` — CORS, JSON parsing, routes at `/api`
+- Routes: `src/routes/index.ts`
+- Market data: `src/lib/tradersage.ts` (Trader Sage API + mock fallback)
+- AI analysis engine: `src/lib/analysis.ts`
 - Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+
+### `artifacts/trading-terminal` (`@workspace/trading-terminal`)
+
+React + Vite frontend.
+
+- `src/pages/` — 9 pages
+- `src/components/terminal-ui.tsx` — shared UI components (TerminalCard, TerminalButton, SignalBadge, PriceChange, DataPoint, etc.)
+- `src/components/layout.tsx` — sidebar nav + header with equity/P&L ticker
+- `src/lib/utils.ts` — `formatCurrency`, `formatPrice`, `formatPercent`, `formatNumber` (all null-safe)
+- `src/hooks/use-app-state.ts` — Zustand store for selected symbol
+- Depends on: `@workspace/api-client-react`
 
 ### `lib/db` (`@workspace/db`)
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+Drizzle ORM + PostgreSQL.
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+- `src/schema/` — table definitions
+- `drizzle.config.ts` — requires `DATABASE_URL` (Replit-provided)
+- Push: `pnpm --filter @workspace/db run push`
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
+OpenAPI 3.1 spec + Orval codegen.
 
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
+- `openapi.yaml` — full API spec
+- Codegen: `pnpm --filter @workspace/api-spec run codegen`
+- Outputs to `lib/api-client-react/src/generated/` and `lib/api-zod/src/generated/`
 
 ### `lib/api-zod` (`@workspace/api-zod`)
 
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
+Generated Zod schemas. Used by `api-server` for validation.
 
 ### `lib/api-client-react` (`@workspace/api-client-react`)
 
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
+Generated TanStack React Query v5 hooks.
+
+- Query keys follow the URL path pattern: `['/api/portfolio/positions']`, `['/api/portfolio']`, etc.
+- Custom fetch in `src/custom-fetch.ts`
 
 ### `scripts` (`@workspace/scripts`)
 
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+Utility scripts. Run via `pnpm --filter @workspace/scripts run <script>`.

@@ -1,0 +1,108 @@
+Build a serious, modern AI live trading web app with a dark, professional interface designed for speed, clarity, and expansion. The app must pull live market data from Trader Sage as the primary data source and present it in a clean, premium dashboard. This should feel closer to a lightweight Bloomberg-style retail trading terminal than a generic finance dashboard.
+
+Core goal:
+Create an MVP that gives the user a real-time trading workspace with AI-assisted analysis, paper trading by default, and an architecture that can later expand into broker integrations and automated trading.
+
+Main requirements:
+
+1. Dashboard and layout
+- Build a responsive web app optimized for desktop first.
+- Use a dark, premium trading UI.
+- Include a left navigation/sidebar, top status/header bar, and main multi-panel workspace.
+- Make the experience feel fast and information-dense without becoming cluttered.
+
+2. Trader Sage live data integration
+- Use Trader Sage as the primary live data source.
+- Pull and display live watchlist data, instrument quotes, price changes, volume, and other useful market metrics available from Trader Sage.
+- Structure the app so the Trader Sage integration is modular and easy to replace or expand later.
+- If any data is unavailable, provide graceful fallback states rather than broken UI.
+
+3. Watchlists and instruments
+- Add a live watchlist panel with sortable instruments.
+- Show symbol, last price, % change, volume, and signal/AI status.
+- Allow multiple watchlists such as favorites, momentum, high volume, and user-defined.
+- Include a detail panel when a symbol is selected.
+
+4. Charts and price views
+- Include a chart area for the selected symbol.
+- Show price movement clearly and support multiple timeframes if possible.
+- Add overlays or annotations for AI-generated trade ideas or signal zones where practical.
+
+5. AI analysis panel
+- Add an AI analysis section that explains, in plain language, why a signal or idea is appearing.
+- This should summarize trend, momentum, volatility, unusual movement, or other available factors from the data.
+- Show bullish, bearish, or neutral bias with confidence-style phrasing, but do not make unrealistic guarantees.
+- Make the explanations readable and useful to a non-expert while still feeling serious.
+
+6. Trade ideas and signals
+- Include a panel for AI-generated trade ideas based on live data.
+- Show entry idea, possible stop zone, possible target zone, and a brief rationale.
+- Clearly label everything as analysis or paper-trading guidance unless real execution is connected later.
+- Include timestamps and signal freshness.
+
+7. Risk and controls
+- Add a risk control area where the user can set account size, max risk per trade, max daily loss, and position sizing preferences.
+- Use this information to contextualize trade ideas and paper trades.
+- Display risk warnings clearly when a setup exceeds user-defined constraints.
+
+8. Paper trading mode
+- Default to paper trading mode.
+- Let the user simulate opening and closing positions from the dashboard.
+- Include open positions, unrealized P/L, realized P/L, trade history, and performance summaries.
+- Make this feature feel realistic enough for strategy testing.
+
+9. Portfolio and positions
+- Add sections for portfolio overview, open positions, recent trades, and performance stats.
+- Show useful metrics such as win rate, average gain/loss, number of trades, and running P/L.
+- Keep the information clean and readable.
+
+10. Alerts and monitoring
+- Add customizable alerts for price levels, percentage moves, signal changes, or unusual activity if practical.
+- Show active alerts and triggered alerts in a dedicated section.
+
+11. Strategy settings
+- Include a strategy/settings area where the user can tune behavior for the AI analysis layer.
+- Examples: momentum focus, conservative vs aggressive setups, timeframe preference, alert thresholds.
+- These settings should affect how analysis is displayed conceptually, even if the MVP uses a simplified model.
+
+12. Expandable architecture
+- Organize the app so it can later support:
+  - broker API connections
+  - automated execution
+  - multiple asset classes
+  - more advanced AI models
+  - backtesting
+  - multi-timeframe scanning
+- The MVP should already feel structured for this future growth.
+
+13. UX expectations
+- Make the UI polished, stable, and realistic.
+- Avoid gimmicky crypto-bro aesthetics.
+- Prioritize usability, confidence, and a premium terminal feel.
+- Use clear empty states, loading states, and error handling.
+
+14. Safety and clarity
+- Do not present outputs as guaranteed financial advice.
+- Clearly separate live market data, AI analysis, and paper trade execution.
+- Keep language credible and restrained.
+
+15. Suggested MVP sections
+- Sidebar navigation
+- Top market/header bar
+- Live watchlist
+- Selected symbol detail
+- Chart panel
+- AI analysis panel
+- Trade ideas panel
+- Risk controls
+- Paper trading/order simulator
+- Portfolio/open positions
+- Recent trades/history
+- Alerts/settings
+
+Design direction:
+Think high-end trading terminal, clean modern SaaS, dark mode, sharp typography, fast scanning, and premium dashboard quality.
+
+Exact user intent to preserve:
+“I want an AI live trader app or website”
+“pull data from trader sage”
