@@ -61,6 +61,15 @@ A professional Bloomberg-style dark terminal for paper trading, AI technical ana
 - Default data: 3 watchlists seeded (Tech Leaders: 8 symbols, Index ETFs: 5 symbols, Momentum Plays: 6 symbols), default settings row (accountSize: $100,000)
 - Schema pushed via `pnpm --filter @workspace/db run push`
 
+### Critical Data-Shape Pattern
+
+Many API endpoints return wrapped objects `{ data, isMock: true }` — NOT raw arrays. Always extract:
+- Positions: `Array.isArray(x?.positions) ? x.positions : Array.isArray(x) ? x : []`
+- Chart history: `data?.candles` (from `{ candles, isMock }`)
+- Portfolio: flat object (no wrapping): `{ accountSize, cash, equity, totalPnl, ... }`
+
+Files already fixed for this pattern: `chart.tsx`, `portfolio.tsx`, `dashboard.tsx`, `ai-pilot.tsx`, `use-paper-trade-form.ts`, `layout.tsx` (uses `queueMicrotask` to avoid render-phase setState).
+
 ### Live Market Data
 - `TRADER_SAGE_API_KEY` env variable: set to enable real Trader Sage API
 - Without the key (or if unreachable), all endpoints return deterministic mock data with realistic price ranges
@@ -95,7 +104,7 @@ Express 5 API server.
 
 React + Vite frontend.
 
-- `src/pages/` — 9 pages
+- `src/pages/` — 13 pages (dashboard, ai-pilot, autonomous, chart, portfolio, analysis, sentiment, discover, backtesting, risk, brokerage, alerts, settings)
 - `src/components/terminal-ui.tsx` — shared UI components (TerminalCard, TerminalButton, SignalBadge, PriceChange, DataPoint, etc.)
 - `src/components/layout.tsx` — sidebar nav + header with equity/P&L ticker
 - `src/lib/utils.ts` — `formatCurrency`, `formatPrice`, `formatPercent`, `formatNumber` (all null-safe)

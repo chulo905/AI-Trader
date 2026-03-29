@@ -7,7 +7,8 @@ export type TradeSide = "long" | "short";
 export function usePaperTradeForm(selectedSymbol: string) {
   const queryClient = useQueryClient();
 
-  const { data: positions, isLoading, error } = useGetPositions();
+  const { data: positionsData, isLoading, error } = useGetPositions();
+  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
   const { data: quote } = useGetQuote(selectedSymbol);
 
   const [side, setSide] = useState<TradeSide>("long");

@@ -11,7 +11,8 @@ export default function PortfolioPage() {
   const queryClient = useQueryClient();
   const { data: portfolio, isLoading: loadPort, error: errPort } = useGetPortfolio();
   const { data: stats, isLoading: loadStats } = useGetTradeStats();
-  const { data: positions, isLoading: loadPos } = useGetPositions();
+  const { data: positionsData, isLoading: loadPos } = useGetPositions();
+  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
   const { data: trades, isLoading: loadTrades } = useGetTrades({ limit: 30 });
 
   const closeMutation = useCloseTrade({

@@ -23,7 +23,8 @@ function useHasMockData(): boolean {
 
   useEffect(() => {
     const unsub = qc.getQueryCache().subscribe(() => {
-      setHasMock(check());
+      // Defer to avoid setState-during-render warning when a query resolves mid-render
+      queueMicrotask(() => setHasMock(check()));
     });
     return unsub;
   }, [qc]);

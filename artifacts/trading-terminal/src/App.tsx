@@ -51,6 +51,7 @@ function Router() {
         <Route path="/watchlist"><Redirect to="/discover" /></Route>
         <Route path="/ideas"><Redirect to="/discover" /></Route>
         <Route path="/trade"><Redirect to="/autopilot" /></Route>
+        <Route path="/paper-trading"><Redirect to="/brokerage" /></Route>
         <Route component={NotFound} />
       </Switch>
     </Layout>

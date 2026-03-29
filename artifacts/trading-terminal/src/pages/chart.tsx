@@ -107,7 +107,8 @@ function ChartWidget({ symbol }: { symbol: string }) {
   const [activeOverlays, setActiveOverlays] = useState<Set<OverlayId>>(new Set());
 
   const { data: quote } = useGetQuote(symbol, { query: { refetchInterval: 10000 } });
-  const { data: history, isLoading, error } = useGetMarketHistory(symbol, { timeframe, period });
+  const { data: historyData, isLoading, error } = useGetMarketHistory(symbol, { timeframe, period });
+  const history = Array.isArray((historyData as any)?.candles) ? (historyData as any).candles : Array.isArray(historyData) ? historyData : undefined;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);

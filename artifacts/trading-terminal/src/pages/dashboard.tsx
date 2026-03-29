@@ -11,7 +11,8 @@ const QUICK_SYMBOLS = ["AAPL", "NVDA", "TSLA", "MSFT", "META", "AMD", "SPY", "BT
 export default function Dashboard() {
   const { setSelectedSymbol } = useAppState();
   const { data: movers, isLoading: loadingMovers, error: moversError } = useGetMarketMovers({ query: { retry: false } });
-  const { data: positions } = useGetPositions({ query: { retry: false } });
+  const { data: positionsData } = useGetPositions({ query: { retry: false } });
+  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
   const { data: portfolio } = useGetPortfolio({ query: { retry: false } });
   const { data: stats } = useGetTradeStats({ query: { retry: false } });
 
