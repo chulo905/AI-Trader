@@ -29,8 +29,8 @@ router.get("/history/:symbol", async (req, res) => {
   const symbol = req.params["symbol"]!.toUpperCase();
   const timeframe = (req.query["timeframe"] as string) ?? "1d";
   const period = (req.query["period"] as string) ?? "1M";
-  const data = await getHistory(symbol, timeframe, period);
-  res.json(data);
+  const { candles, isMock } = await getHistory(symbol, timeframe, period);
+  res.json({ candles, isMock });
 });
 
 router.get("/quote/:symbol", async (req, res) => {

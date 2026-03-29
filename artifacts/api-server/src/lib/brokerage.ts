@@ -1,3 +1,6 @@
+import { logger } from "./logger";
+import { isMarketOpen as sharedIsMarketOpen } from "./market-hours";
+
 export type BrokerageProvider = "paper" | "alpaca" | "interactive-brokers" | "td-ameritrade";
 
 export interface BrokerageOrder {
@@ -61,7 +64,7 @@ class PaperBrokerageAdapter implements BrokerageAdapter {
 
   async submitOrder(order: BrokerageOrder): Promise<{ orderId: string; status: string; message: string }> {
     const orderId = `PAPER-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-    console.log(`[Paper Brokerage] Order submitted: ${order.side.toUpperCase()} ${order.qty} ${order.symbol} @ market`);
+    logger.info({ orderId, side: order.side, qty: order.qty, symbol: order.symbol }, "Paper brokerage order submitted");
     return {
       orderId,
       status: "filled",
@@ -74,14 +77,7 @@ class PaperBrokerageAdapter implements BrokerageAdapter {
   }
 
   async isMarketOpen(): Promise<boolean> {
-    const now = new Date();
-    const day = now.getUTCDay();
-    const hour = now.getUTCHours();
-    const minute = now.getUTCMinutes();
-    const timeInMinutes = hour * 60 + minute;
-    const marketOpenET = 14 * 60 + 30;
-    const marketCloseET = 21 * 60;
-    return day >= 1 && day <= 5 && timeInMinutes >= marketOpenET && timeInMinutes < marketCloseET;
+    return sharedIsMarketOpen();
   }
 }
 
@@ -171,12 +167,7 @@ class AlpacaAdapter implements BrokerageAdapter {
 
   async isMarketOpen(): Promise<boolean> {
     if (!this.connected) {
-      const now = new Date();
-      const day = now.getUTCDay();
-      const hour = now.getUTCHours();
-      const minute = now.getUTCMinutes();
-      const t = hour * 60 + minute;
-      return day >= 1 && day <= 5 && t >= 14 * 60 + 30 && t < 21 * 60;
+      return sharedIsMarketOpen();
     }
     const res = await fetch(`${this.baseUrl}/v2/clock`, { headers: this.headers });
     const data = await res.json();
@@ -194,10 +185,10 @@ export function getBrokerageAdapter(): BrokerageAdapter {
 
   if (alpacaKey && alpacaSecret) {
     _adapter = new AlpacaAdapter(alpacaKey, alpacaSecret, true);
-    console.log("[Brokerage] Using Alpaca paper trading adapter");
+    logger.info("Using Alpaca paper trading adapter");
   } else {
     _adapter = new PaperBrokerageAdapter();
-    console.log("[Brokerage] Using built-in paper trading adapter");
+    logger.info("Using built-in paper trading adapter");
   }
 
   return _adapter;

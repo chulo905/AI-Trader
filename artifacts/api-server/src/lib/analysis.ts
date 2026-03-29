@@ -2,6 +2,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { getHistory, getSingleQuote } from "./tradersage";
 import { computeIndicators, interpretIndicators, type OHLCVBar } from "./technicals";
 import { computeExtendedIndicators, interpretExtendedIndicators } from "./indicators-extended";
+import { logger } from "./logger";
 
 const analysisCache = new Map<string, { data: object; expiresAt: number }>();
 const pendingAnalysis = new Set<string>();
@@ -14,12 +15,12 @@ export async function generateAnalysis(symbol: string, timeframe: string) {
     return cached.data;
   }
 
-  const [quote, history] = await Promise.all([
+  const [quote, historyResult] = await Promise.all([
     getSingleQuote(symbol),
     getHistory(symbol, timeframe, "3M"),
   ]);
 
-  const bars: OHLCVBar[] = history.map(h => ({
+  const bars: OHLCVBar[] = historyResult.candles.map(h => ({
     time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
   }));
   const indicators = computeIndicators(bars);
@@ -30,7 +31,7 @@ export async function generateAnalysis(symbol: string, timeframe: string) {
     runLLMInBackground(symbol, timeframe, cacheKey, quote, indicators, extended);
   }
 
-  return buildFallbackAnalysis(symbol, timeframe, quote, indicators, extended);
+  return { ...buildFallbackAnalysis(symbol, timeframe, quote, indicators, extended), isMock: quote.isMock || historyResult.isMock };
 }
 
 async function runLLMInBackground(
@@ -104,7 +105,7 @@ Derive key levels from Bollinger Bands, SMAs, and 52-week range. Paper trading o
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       max_completion_tokens: 8192,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -130,9 +131,9 @@ Derive key levels from Bollinger Bands, SMAs, and 52-week range. Paper trading o
       aiPowered: true,
     };
     analysisCache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
-    console.log(`[AI Analysis] GPT analysis cached for ${cacheKey}`);
+    logger.info({ cacheKey }, "GPT analysis cached");
   } catch (err) {
-    console.error("LLM analysis background task failed:", err);
+    logger.error({ err }, "LLM analysis background task failed");
     analysisCache.delete(cacheKey);
   } finally {
     pendingAnalysis.delete(cacheKey);
@@ -193,12 +194,12 @@ export async function generateTradeIdeas(limit: number = 10): Promise<object[]> 
   const selected = candidates.slice(0, Math.min(limit, candidates.length));
 
   const ideas = await Promise.all(selected.map(async (symbol) => {
-    const [quote, history] = await Promise.all([
+    const [quote, historyResult] = await Promise.all([
       getSingleQuote(symbol),
       getHistory(symbol, "1d", "3M"),
     ]);
 
-    const bars: OHLCVBar[] = history.map(h => ({
+    const bars: OHLCVBar[] = historyResult.candles.map(h => ({
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const indicators = computeIndicators(bars);

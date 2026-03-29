@@ -5,6 +5,7 @@ import { computeIndicators, type OHLCVBar } from "./technicals";
 import { computeExtendedIndicators } from "./indicators-extended";
 import { checkRisk, enforceStopLosses } from "./risk-manager";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { logger } from "./logger";
 
 const LOOP_INTERVAL_MS = 60 * 1000;
 let loopTimer: ReturnType<typeof setInterval> | null = null;
@@ -66,7 +67,7 @@ async function runAIDecision(symbol: string, quote: { price: number; changePerce
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       max_completion_tokens: 100,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -90,12 +91,12 @@ async function processSymbol(config: typeof autonomousConfigTable.$inferSelect) 
   const ts = new Date().toISOString();
 
   try {
-    const [quote, history] = await Promise.all([
+    const [quote, historyResult] = await Promise.all([
       getSingleQuote(symbol),
       getHistory(symbol, "1d", "3M"),
     ]);
 
-    const bars: OHLCVBar[] = history.map(h => ({
+    const bars: OHLCVBar[] = historyResult.candles.map(h => ({
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const indicators = computeIndicators(bars);
@@ -177,12 +178,12 @@ async function processSymbol(config: typeof autonomousConfigTable.$inferSelect) 
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     addLog({ ts, symbol, action: "ERROR", result: "Failed", reason: msg });
-    console.error(`[AutoLoop] Error processing ${symbol}:`, err);
+    logger.error({ symbol, err }, "AutoLoop error processing symbol");
   }
 }
 
 async function runLoop() {
-  console.log("[AutoLoop] Running autonomous loop tick...");
+  logger.debug("AutoLoop tick running");
   try {
     const configs = await db.select().from(autonomousConfigTable)
       .where(eq(autonomousConfigTable.enabled, true));
@@ -197,13 +198,13 @@ async function runLoop() {
       }
     }
   } catch (err) {
-    console.error("[AutoLoop] Loop error:", err);
+    logger.error({ err }, "AutoLoop loop error");
   }
 }
 
 export function startAutonomousLoop() {
   if (loopTimer) return;
-  console.log("[AutoLoop] Starting autonomous execution loop");
+  logger.info("AutoLoop starting autonomous execution loop");
   runLoop();
   loopTimer = setInterval(runLoop, LOOP_INTERVAL_MS);
 }
@@ -212,7 +213,7 @@ export function stopAutonomousLoop() {
   if (loopTimer) {
     clearInterval(loopTimer);
     loopTimer = null;
-    console.log("[AutoLoop] Autonomous loop stopped");
+    logger.info("AutoLoop stopped");
   }
 }
 

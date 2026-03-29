@@ -1,6 +1,7 @@
 import { WebSocketServer, type WebSocket } from "ws";
 import { IncomingMessage, Server as HttpServer } from "http";
 import { getSingleQuote } from "./tradersage";
+import { logger } from "./logger";
 
 interface PriceUpdate {
   type: "price";
@@ -80,7 +81,7 @@ export function createWebSocketServer(server: HttpServer) {
   wss = new WebSocketServer({ server, path: "/ws" });
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    console.log(`[WebSocket] Client connected from ${req.socket.remoteAddress}`);
+    logger.debug({ remoteAddress: req.socket.remoteAddress }, "WebSocket client connected");
     clientSubscriptions.set(ws, new Set());
 
     ws.send(JSON.stringify({ type: "connected", message: "AI Trading Terminal WebSocket connected." }));
@@ -109,17 +110,17 @@ export function createWebSocketServer(server: HttpServer) {
           ws.send(JSON.stringify({ type: "unsubscribed", symbol: msg.symbol.toUpperCase() }));
         }
       } catch (err) {
-        console.error("[WebSocket] Error parsing message:", err);
+        logger.error({ err }, "WebSocket error parsing message");
       }
     });
 
     ws.on("close", () => {
       clientSubscriptions.delete(ws);
-      console.log("[WebSocket] Client disconnected");
+      logger.debug("WebSocket client disconnected");
     });
 
     ws.on("error", (err) => {
-      console.error("[WebSocket] Error:", err.message);
+      logger.error({ err }, "WebSocket error");
     });
   });
 
@@ -127,7 +128,7 @@ export function createWebSocketServer(server: HttpServer) {
     broadcastTimer = setInterval(broadcastPrices, BROADCAST_INTERVAL);
   }
 
-  console.log("[WebSocket] Server started on /ws");
+  logger.info("WebSocket server started on /ws");
   return wss;
 }
 

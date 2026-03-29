@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getSingleQuote, getHistory } from "../lib/tradersage";
 import { computeIndicators, type OHLCVBar } from "../lib/technicals";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -51,7 +52,7 @@ Return ONLY a valid JSON object:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       max_completion_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -81,9 +82,9 @@ Return ONLY a valid JSON object:
     };
 
     decisionCache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
-    console.log(`[Autopilot] GPT decision cached for ${symbol}: ${parsed.action}`);
+    logger.info({ symbol, action: parsed.action }, "Autopilot GPT decision cached");
   } catch (err) {
-    console.error("[Autopilot] GPT decision failed:", err);
+    logger.error({ symbol, err }, "Autopilot GPT decision failed");
     decisionCache.delete(cacheKey);
   } finally {
     pendingDecisions.delete(cacheKey);
@@ -144,12 +145,12 @@ router.get("/:symbol", async (req, res) => {
   }
 
   try {
-    const [quote, history] = await Promise.all([
+    const [quote, historyResult] = await Promise.all([
       getSingleQuote(symbol),
       getHistory(symbol, "1d", "3M"),
     ]);
 
-    const bars: OHLCVBar[] = history.map(h => ({
+    const bars: OHLCVBar[] = historyResult.candles.map(h => ({
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const indicators = computeIndicators(bars);
@@ -159,9 +160,9 @@ router.get("/:symbol", async (req, res) => {
       runAIDecisionInBackground(symbol, cacheKey, quote, indicators);
     }
 
-    res.json(buildFallbackDecision(symbol, quote, indicators));
+    res.json({ ...buildFallbackDecision(symbol, quote, indicators), isMock: quote.isMock || historyResult.isMock });
   } catch (err) {
-    console.error("[Autopilot] Error:", err);
+    logger.error({ symbol, err }, "Autopilot decision error");
     res.status(500).json({ error: "Failed to generate AI decision" });
   }
 });
@@ -229,7 +230,7 @@ router.post("/:symbol/execute", async (req, res) => {
       message: `AI bought ${shares} shares of ${symbol} at $${entryPrice}.`,
     });
   } catch (err) {
-    console.error("[Autopilot Execute] Error:", err);
+    logger.error({ symbol, err }, "Autopilot execute error");
     res.status(500).json({ error: "Failed to execute AI trade" });
   }
 });

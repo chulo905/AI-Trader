@@ -1,11 +1,11 @@
-import { Router, type IRouter } from "express";
+import { Router, type NextFunction, type Request, type Response, type IRouter } from "express";
 import { db, autonomousConfigTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { isLoopRunning, getExecutionLog, startAutonomousLoop } from "../lib/autonomous-loop";
 
 const router: IRouter = Router();
 
-router.get("/status", async (_req, res) => {
+router.get("/status", async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const configs = await db.select().from(autonomousConfigTable);
     const log = getExecutionLog();
@@ -17,57 +17,61 @@ router.get("/status", async (_req, res) => {
       recentLog: log.slice(0, 20),
     });
   } catch (err) {
-    res.status(500).json({ error: "Failed to get autonomous status" });
+    next(err);
   }
 });
 
-router.get("/log", (_req, res) => {
+router.get("/log", (_req: Request, res: Response) => {
   res.json(getExecutionLog());
 });
 
-router.get("/configs", async (_req, res) => {
+router.get("/configs", async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const configs = await db.select().from(autonomousConfigTable);
     res.json(configs);
-  } catch {
-    res.status(500).json({ error: "Failed to get configs" });
+  } catch (err) {
+    next(err);
   }
 });
 
-router.post("/configs", async (req, res) => {
-  const { symbol, enabled, budgetPerTrade, maxShares, intervalMinutes } = req.body;
-  if (!symbol) { res.status(400).json({ error: "symbol is required" }); return; }
-
+router.post("/configs", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existing = await db.select().from(autonomousConfigTable)
-      .where(eq(autonomousConfigTable.symbol, symbol.toUpperCase()));
+    const { symbol, enabled, budgetPerTrade, maxShares, intervalMinutes } = req.body;
+    if (!symbol || typeof symbol !== "string") {
+      res.status(400).json({ error: "Validation failed", code: "VALIDATION_ERROR", message: "symbol is required" });
+      return;
+    }
 
-    if (existing.length > 0) {
-      const [updated] = await db.update(autonomousConfigTable).set({
-        enabled: enabled ?? existing[0]!.enabled,
-        budgetPerTrade: budgetPerTrade ?? existing[0]!.budgetPerTrade,
-        maxShares: maxShares ?? existing[0]!.maxShares,
-        intervalMinutes: intervalMinutes ?? existing[0]!.intervalMinutes,
-        updatedAt: new Date(),
-      }).where(eq(autonomousConfigTable.symbol, symbol.toUpperCase())).returning();
-      res.json(updated);
-    } else {
-      const [created] = await db.insert(autonomousConfigTable).values({
-        symbol: symbol.toUpperCase(),
+    const sym = symbol.toUpperCase();
+
+    const [upserted] = await db.insert(autonomousConfigTable)
+      .values({
+        symbol: sym,
         enabled: enabled ?? false,
         budgetPerTrade: budgetPerTrade ?? 1000,
         maxShares: maxShares ?? 10,
         intervalMinutes: intervalMinutes ?? 15,
-      }).returning();
-      if (enabled) startAutonomousLoop();
-      res.status(201).json(created);
-    }
+      })
+      .onConflictDoUpdate({
+        target: autonomousConfigTable.symbol,
+        set: {
+          enabled: sql`EXCLUDED.enabled`,
+          budgetPerTrade: sql`EXCLUDED."budgetPerTrade"`,
+          maxShares: sql`EXCLUDED."maxShares"`,
+          intervalMinutes: sql`EXCLUDED."intervalMinutes"`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
+    if (upserted?.enabled) startAutonomousLoop();
+    res.status(201).json(upserted);
   } catch (err) {
-    res.status(500).json({ error: "Failed to save config" });
+    next(err);
   }
 });
 
-router.patch("/configs/:symbol/toggle", async (req, res) => {
+router.patch("/configs/:symbol/toggle", async (req: Request, res: Response, next: NextFunction) => {
   const symbol = req.params["symbol"]!.toUpperCase();
   try {
     const [existing] = await db.select().from(autonomousConfigTable)
@@ -88,18 +92,18 @@ router.patch("/configs/:symbol/toggle", async (req, res) => {
 
     if (updated?.enabled) startAutonomousLoop();
     res.json({ ...updated, toggled: true });
-  } catch {
-    res.status(500).json({ error: "Failed to toggle" });
+  } catch (err) {
+    next(err);
   }
 });
 
-router.delete("/configs/:symbol", async (req, res) => {
+router.delete("/configs/:symbol", async (req: Request, res: Response, next: NextFunction) => {
   const symbol = req.params["symbol"]!.toUpperCase();
   try {
     await db.delete(autonomousConfigTable).where(eq(autonomousConfigTable.symbol, symbol));
     res.json({ deleted: true, symbol });
-  } catch {
-    res.status(500).json({ error: "Failed to delete config" });
+  } catch (err) {
+    next(err);
   }
 });
 

@@ -175,17 +175,16 @@ function generateMockCandle(time: Date, prevClose: number) {
 }
 
 export async function getQuotes(symbols: string[]) {
-  const results = [];
-  for (const symbol of symbols) {
+  const results = await Promise.all(symbols.map(async (symbol) => {
     try {
       const data = await fetchTS(`/v1/quote/${symbol}`);
       const raw = (data as Record<string, unknown>)?.quote ?? data;
-      results.push(normalizeQuote(raw as TSQuote, symbol));
+      return { ...normalizeQuote(raw as TSQuote, symbol), isMock: false };
     } catch (err) {
-      logger.warn({ symbol, err }, "Trader Sage quote failed, using fallback");
-      results.push(generateMockQuote(symbol));
+      logger.warn({ symbol, err }, "Trader Sage quote failed, using mock fallback");
+      return { ...generateMockQuote(symbol), isMock: true };
     }
-  }
+  }));
   return results;
 }
 
@@ -193,10 +192,10 @@ export async function getSingleQuote(symbol: string) {
   try {
     const data = await fetchTS(`/v1/quote/${symbol}`);
     const raw = (data as Record<string, unknown>)?.quote ?? data;
-    return normalizeQuote(raw as TSQuote, symbol);
+    return { ...normalizeQuote(raw as TSQuote, symbol), isMock: false };
   } catch (err) {
-    logger.warn({ symbol, err }, "Trader Sage single quote failed, using fallback");
-    return generateMockQuote(symbol);
+    logger.warn({ symbol, err }, "Trader Sage single quote failed, using mock fallback");
+    return { ...generateMockQuote(symbol), isMock: true };
   }
 }
 
@@ -204,17 +203,42 @@ export async function getHistory(symbol: string, timeframe: string, period: stri
   try {
     const data = await fetchTS(`/v1/history/${symbol}`, { timeframe, period });
     const candles = ((data as Record<string, unknown>)?.candles ?? (data as unknown[])) as TSCandle[];
-    return candles.map((c: TSCandle) => ({
-      time: c.time ? new Date(typeof c.time === "number" ? c.time * 1000 : c.time).toISOString() : c.date ?? new Date().toISOString(),
-      open: c.open ?? 0,
-      high: c.high ?? 0,
-      low: c.low ?? 0,
-      close: c.close ?? 0,
-      volume: c.volume ?? 0,
-    }));
+    return {
+      isMock: false,
+      candles: candles.map((c: TSCandle) => ({
+        time: c.time ? new Date(typeof c.time === "number" ? c.time * 1000 : c.time).toISOString() : c.date ?? new Date().toISOString(),
+        open: c.open ?? 0,
+        high: c.high ?? 0,
+        low: c.low ?? 0,
+        close: c.close ?? 0,
+        volume: c.volume ?? 0,
+      })),
+    };
   } catch (err) {
     logger.warn({ symbol, err }, "Trader Sage history failed, generating mock data");
-    return generateMockHistory(symbol, timeframe, period);
+    return { isMock: true, candles: generateMockHistory(symbol, timeframe, period) };
+  }
+}
+
+export async function getMovers() {
+  try {
+    const data = await fetchTS("/v1/movers");
+    const raw = data as Record<string, unknown>;
+    return {
+      isMock: false,
+      gainers: ((raw.gainers as TSQuote[]) ?? []).map((q: TSQuote) => normalizeQuote(q, q.symbol ?? "")),
+      losers: ((raw.losers as TSQuote[]) ?? []).map((q: TSQuote) => normalizeQuote(q, q.symbol ?? "")),
+      mostActive: ((raw.most_active ?? raw.mostActive) as TSQuote[] ?? []).map((q: TSQuote) => normalizeQuote(q, q.symbol ?? "")),
+    };
+  } catch (err) {
+    logger.warn({ err }, "Trader Sage movers failed, using mock fallback");
+    const gainers = ["NVDA", "META", "AMD", "TSLA", "AAPL"].map(generateMockQuote)
+      .sort((a, b) => b.changePercent - a.changePercent);
+    const losers = ["F", "BA", "WMT", "JNJ", "PFE"].map(generateMockQuote)
+      .sort((a, b) => a.changePercent - b.changePercent);
+    const mostActive = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"].map(generateMockQuote)
+      .sort((a, b) => b.volume - a.volume);
+    return { isMock: true, gainers, losers, mostActive };
   }
 }
 
@@ -254,27 +278,6 @@ function generateMockHistory(symbol: string, _timeframe: string, period: string)
   return candles;
 }
 
-export async function getMovers() {
-  try {
-    const data = await fetchTS("/v1/movers");
-    const raw = data as Record<string, unknown>;
-    return {
-      gainers: ((raw.gainers as TSQuote[]) ?? []).map((q: TSQuote) => normalizeQuote(q, q.symbol ?? "")),
-      losers: ((raw.losers as TSQuote[]) ?? []).map((q: TSQuote) => normalizeQuote(q, q.symbol ?? "")),
-      mostActive: ((raw.most_active ?? raw.mostActive) as TSQuote[] ?? []).map((q: TSQuote) => normalizeQuote(q, q.symbol ?? "")),
-    };
-  } catch (err) {
-    logger.warn({ err }, "Trader Sage movers failed, using fallback");
-    const gainers = ["NVDA", "META", "AMD", "TSLA", "AAPL"].map(generateMockQuote)
-      .sort((a, b) => b.changePercent - a.changePercent);
-    const losers = ["F", "BA", "WMT", "JNJ", "PFE"].map(generateMockQuote)
-      .sort((a, b) => a.changePercent - b.changePercent);
-    const mostActive = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"].map(generateMockQuote)
-      .sort((a, b) => b.volume - a.volume);
-    return { gainers, losers, mostActive };
-  }
-}
-
 export async function scanMarket(strategy: string) {
   const strategySets: Record<string, string[]> = {
     momentum: ["NVDA", "META", "MSFT", "AAPL", "GOOGL"],
@@ -286,16 +289,20 @@ export async function scanMarket(strategy: string) {
 
   const symbols = strategySets[strategy] ?? strategySets["momentum"]!;
   const quotes = await getQuotes(symbols);
-  return quotes.map(q => ({
-    symbol: q.symbol,
-    name: q.name,
-    price: q.price,
-    changePercent: q.changePercent,
-    volume: q.volume,
-    score: q.signalStrength ?? 50,
-    signal: q.signal ?? "neutral",
-    reason: getStrategyReason(strategy, q),
-  }));
+  const anyMock = quotes.some(q => q.isMock);
+  return {
+    isMock: anyMock,
+    results: quotes.map(q => ({
+      symbol: q.symbol,
+      name: q.name,
+      price: q.price,
+      changePercent: q.changePercent,
+      volume: q.volume,
+      score: q.signalStrength ?? 50,
+      signal: q.signal ?? "neutral",
+      reason: getStrategyReason(strategy, q),
+    })),
+  };
 }
 
 function getStrategyReason(strategy: string, q: { changePercent: number; volume: number; avgVolume?: number | null }): string {

@@ -1,4 +1,4 @@
-import { db, tradesTable, settingsTable } from "@workspace/db";
+import { db, tradesTable, riskSettingsTable, settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export interface RiskCheckResult {
@@ -42,8 +42,17 @@ export async function getRiskSettings() {
   }
 }
 
+async function getStartingEquity(): Promise<number> {
+  try {
+    const [settings] = await db.select().from(settingsTable);
+    return settings?.accountSize ?? 100_000;
+  } catch {
+    return 100_000;
+  }
+}
+
 export async function getPortfolioMetrics(currentPrices: Record<string, number> = {}): Promise<PortfolioMetrics> {
-  const STARTING_EQUITY = 100_000;
+  const startingEquity = await getStartingEquity();
 
   try {
     const allTrades = await db.select().from(tradesTable);
@@ -68,10 +77,10 @@ export async function getPortfolioMetrics(currentPrices: Record<string, number> 
       .filter(t => t.status === "closed")
       .reduce((sum, t) => sum + (t.realizedPnl ?? 0), 0);
 
-    const equity = STARTING_EQUITY + realizedPnl + unrealizedPnl;
+    const equity = startingEquity + realizedPnl + unrealizedPnl;
     const totalExposure = openTrades.reduce((sum, t) => sum + t.entryPrice * t.shares, 0);
 
-    const maxDrawdown = Math.max(0, (STARTING_EQUITY - equity) / STARTING_EQUITY);
+    const maxDrawdown = Math.max(0, (startingEquity - equity) / startingEquity);
 
     return {
       equity,
@@ -82,7 +91,7 @@ export async function getPortfolioMetrics(currentPrices: Record<string, number> 
     };
   } catch {
     return {
-      equity: STARTING_EQUITY,
+      equity: startingEquity,
       openPositions: 0,
       todayRealizedLoss: 0,
       totalExposure: 0,

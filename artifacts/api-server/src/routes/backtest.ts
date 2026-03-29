@@ -21,8 +21,8 @@ router.get("/:symbol", async (req, res) => {
   }
 
   try {
-    const history = await getHistory(symbol, "1d", period);
-    const bars: OHLCVBar[] = history.map(h => ({
+    const { candles, isMock } = await getHistory(symbol, "1d", period);
+    const bars: OHLCVBar[] = candles.map(h => ({
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
 
@@ -33,9 +33,8 @@ router.get("/:symbol", async (req, res) => {
 
     const result = runBacktest(bars, symbol, period, budget);
     backtestCache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL });
-    res.json(result);
+    res.json({ ...result, isMock });
   } catch (err) {
-    console.error("[Backtest]", err);
     res.status(500).json({ error: "Backtest failed" });
   }
 });

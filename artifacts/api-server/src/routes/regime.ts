@@ -17,15 +17,14 @@ router.get("/:symbol", async (req, res) => {
   }
 
   try {
-    const history = await getHistory(symbol, "1d", "6M");
-    const bars: OHLCVBar[] = history.map(h => ({
+    const { candles, isMock } = await getHistory(symbol, "1d", "6M");
+    const bars: OHLCVBar[] = candles.map(h => ({
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const result = detectMarketRegime(bars, symbol);
     regimeCache.set(symbol, { data: result, expiresAt: Date.now() + CACHE_TTL });
-    res.json(result);
+    res.json({ ...result, isMock });
   } catch (err) {
-    console.error("[Regime]", err);
     res.status(500).json({ error: "Failed to detect market regime" });
   }
 });

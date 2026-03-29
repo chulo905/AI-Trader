@@ -1,5 +1,6 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { runFinBert, aggregateFinBertScores } from "./finbert.js";
+import { logger } from "./logger";
 
 export interface SentimentResult {
   symbol: string;
@@ -109,9 +110,9 @@ Return ONLY valid JSON:
           const finbertResults = await runFinBert(headlines, `finbert:${symbol}`);
           const { score: finbertScore } = aggregateFinBertScores(finbertResults);
           finalScore = Math.round(gptScore * 0.6 + finbertScore * 0.4);
-          console.log(`[Sentiment] ${symbol} — GPT: ${gptScore}, FinBERT: ${finbertScore}, Blended: ${finalScore}`);
+          logger.debug({ symbol, gptScore, finbertScore, finalScore }, "Sentiment blend computed");
         } catch (fbErr) {
-          console.error("[Sentiment] FinBERT scoring failed, using GPT score only:", fbErr);
+          logger.warn({ symbol, err: fbErr }, "FinBERT scoring failed, using GPT score only");
         }
       }
 
@@ -133,7 +134,7 @@ Return ONLY valid JSON:
 
       sentimentCache.set(symbol, { data: result, expiresAt: Date.now() + CACHE_TTL });
     } catch (err) {
-      console.error("[Sentiment] GPT error:", err);
+      logger.error({ symbol, err }, "Sentiment GPT error");
     }
   })();
 
