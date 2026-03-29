@@ -3,7 +3,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
 import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, SignalBadge, TerminalTable } from "@/components/terminal-ui";
 import { formatPrice } from "@/lib/utils";
-import { Brain, Target, Activity, Zap, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, AlertTriangle, Sparkles } from "lucide-react";
+import { Brain, Target, Activity, Zap, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, AlertTriangle, Sparkles, XCircle, Eye, ChevronRight, Clock } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -183,8 +183,11 @@ function AnalysisPageInner() {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-1">Directional Bias</h2>
-                  <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <SignalBadge signal={analysis.bias} className="px-4 py-2 text-base" />
+                    {(analysis as any).grade && (
+                      <AnalysisGradeBadge grade={(analysis as any).grade} />
+                    )}
                     <div className="flex items-center gap-2 font-mono text-sm">
                       <span className="text-muted-foreground">Confidence:</span>
                       <span className="text-primary font-bold">{analysis.confidence}%</span>
@@ -230,6 +233,30 @@ function AnalysisPageInner() {
                 <div className="text-sm">{analysis.volatility}</div>
               </TerminalCard>
             </div>
+
+            {/* Bull Case / Bear Case */}
+            {aiPowered && ((analysis as any).bullCase || (analysis as any).bearCase) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(analysis as any).bullCase && (
+                  <div className="p-4 rounded-sm border border-bullish/25 bg-bullish/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-4 h-4 text-bullish" />
+                      <span className="text-xs font-bold text-bullish/80 uppercase tracking-widest">Bull Case</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground/80">{(analysis as any).bullCase}</p>
+                  </div>
+                )}
+                {(analysis as any).bearCase && (
+                  <div className="p-4 rounded-sm border border-bearish/25 bg-bearish/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingDown className="w-4 h-4 text-bearish" />
+                      <span className="text-xs font-bold text-bearish/80 uppercase tracking-widest">Bear Case</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground/80">{(analysis as any).bearCase}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <TerminalCard title="Technical Signals">
               <TerminalTable headers={["Indicator", "Value", "Interpretation"]}>
@@ -366,6 +393,51 @@ function AnalysisPageInner() {
             {/* AI Price Forecast */}
             <AIPriceForecastCard symbol={selectedSymbol} />
 
+            {/* Invalidation Level + Trade Plan */}
+            {aiPowered && (analysis as any).invalidationLevel && (
+              <div className="rounded-sm border border-warning/30 bg-warning/5 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <XCircle className="w-4 h-4 text-warning" />
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Invalidation Level</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">Trade thesis fails if price breaks:</p>
+                <p className="text-2xl font-mono font-bold text-warning tabular-nums">
+                  {formatPrice((analysis as any).invalidationLevel)}
+                </p>
+              </div>
+            )}
+            {aiPowered && (analysis as any).tradePlan && (
+              <TerminalCard>
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold uppercase text-xs tracking-widest text-muted-foreground">AI Trade Plan</h3>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { label: "Entry", value: (analysis as any).tradePlan.entry, color: "text-foreground" },
+                    { label: "Stop", value: (analysis as any).tradePlan.stop, color: "text-bearish" },
+                    { label: "Target 1", value: (analysis as any).tradePlan.target1, color: "text-bullish" },
+                    { label: "Target 2", value: (analysis as any).tradePlan.target2, color: "text-bullish" },
+                  ].map(({ label, value, color }) => value && (
+                    <div key={label} className="flex justify-between items-center text-sm border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                      <span className="text-muted-foreground font-semibold uppercase text-xs tracking-wider">{label}</span>
+                      <span className={cn("font-mono font-bold tabular-nums", color)}>{formatPrice(value)}</span>
+                    </div>
+                  ))}
+                  {(analysis as any).tradePlan?.rrRatio && (
+                    <div className="mt-1 pt-2 border-t border-border flex justify-between">
+                      <span className="text-xs text-muted-foreground">Risk/Reward</span>
+                      <span className={cn("font-mono font-bold text-sm",
+                        (analysis as any).tradePlan.rrRatio >= 2.5 ? "text-bullish" :
+                        (analysis as any).tradePlan.rrRatio >= 1.5 ? "text-foreground" :
+                        "text-bearish"
+                      )}>{(analysis as any).tradePlan.rrRatio.toFixed(1)}×</span>
+                    </div>
+                  )}
+                </div>
+              </TerminalCard>
+            )}
+
             <TerminalCard title="Key Price Levels">
               <div className="flex flex-col gap-3">
                 {analysis.keyLevels.map((lvl, i) => (
@@ -425,6 +497,21 @@ function AnalysisPageInner() {
         </div>
       )}
     </PageTransition>
+  );
+}
+
+function AnalysisGradeBadge({ grade }: { grade: string }) {
+  const color =
+    grade === "A+" ? "border-bullish/60 text-bullish bg-bullish/10" :
+    grade === "A"  ? "border-bullish/40 text-bullish bg-bullish/8" :
+    grade === "B"  ? "border-primary/40 text-primary bg-primary/8" :
+    grade === "C"  ? "border-yellow-500/40 text-yellow-400 bg-yellow-500/8" :
+    grade === "D"  ? "border-orange-500/40 text-orange-400 bg-orange-500/8" :
+                    "border-bearish/40 text-bearish bg-bearish/8";
+  return (
+    <span className={cn("inline-flex items-center border rounded-sm px-3 py-1.5 text-sm font-bold font-mono uppercase tracking-widest", color)}>
+      Setup: {grade}
+    </span>
   );
 }
 

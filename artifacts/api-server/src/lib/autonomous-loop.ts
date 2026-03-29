@@ -227,9 +227,19 @@ VOLUME: ${indicators.volumeSpike ? `SPIKE ${indicators.volumeRatio}x average` : 
 RAW VALUES:
 - RSI(14): ${indicators.rsi14 ?? "N/A"} | SMA200 pct: ${indicators.priceVsSma200 ?? "N/A"}% | SMA50 pct: ${indicators.priceVsSma50 ?? "N/A"}%
 - MACD histogram: ${indicators.macd?.histogram?.toFixed(3) ?? "N/A"}
-- ATR(14): $${indicators.atr14 ?? "N/A"} | Ichimoku: ${extended.ichimoku ? (extended.ichimoku.aboveCloud ? "above cloud" : "below cloud") : "N/A"}
+- ATR(14): $${indicators.atr14 ?? "N/A"} | Ichimoku: ${extended.ichimoku ? (extended.ichimoku.aboveCloud ? "ABOVE cloud (bullish)" : "BELOW cloud (bearish)") : "N/A"}
 - ADX: ${extended.adx?.adx ?? "N/A"} (${extended.adx?.trendStrength ?? "N/A"}) +DI:${extended.adx?.pdi ?? "N/A"} -DI:${extended.adx?.mdi ?? "N/A"}
 - Stochastic: K=${extended.stochastic?.k ?? "N/A"} D=${extended.stochastic?.d ?? "N/A"}
+- Williams %R: ${extended.williamsR ?? "N/A"} | CCI(20): ${extended.cci ?? "N/A"}
+- Aroon Up/Down: ${extended.aroon?.up ?? "N/A"}/${extended.aroon?.down ?? "N/A"} (${extended.aroon?.signal ?? "N/A"})
+- OBV trend: ${extended.obv?.trend ?? "N/A"} | Parabolic SAR: ${extended.parabolicSar?.trend ?? "N/A"}
+- Bollinger: price ${extended.bollingerBands ? (extended.bollingerBands.percentB !== undefined ? (extended.bollingerBands.percentB > 0.8 ? "near upper band (overbought)" : extended.bollingerBands.percentB < 0.2 ? "near lower band (oversold)" : "mid-band") : "N/A") : "N/A"}
+
+DECISION CRITERIA:
+- BUY requires: score ≥ ${scored.buyThreshold} AND regime not strong-bear AND no pattern block AND multiple confirming signals
+- SELL requires: score ≤ ${scored.sellThreshold} OR strong bearish pattern AND declining volume
+- HOLD when: signals conflict, regime uncertain, or evidence is insufficient
+- Never fight ADX>30 trend direction
 
 RULES:
 - Score ${scored.score} vs BUY threshold ${scored.buyThreshold} / SELL threshold ${scored.sellThreshold}

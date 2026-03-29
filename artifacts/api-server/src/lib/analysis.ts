@@ -118,21 +118,41 @@ RAW VALUES:
 - Ichimoku: ${extended.ichimoku ? `${extended.ichimoku.aboveCloud ? "ABOVE" : "BELOW"} cloud ($${extended.ichimoku.cloudBottom}–$${extended.ichimoku.cloudTop}), Tenkan $${extended.ichimoku.tenkan}, Kijun $${extended.ichimoku.kijun}` : "N/A"}
 
 ════════════════════════════════════════
+SETUP GRADING RUBRIC:
+A+: 5+ indicators aligned, clear pattern, near key level, strong volume, R/R >3:1
+A:  4+ indicators aligned, defined R/R >2.5:1, confirmed pattern
+B:  3 indicators aligned, moderate confluence, R/R >2:1
+C:  Mixed signals, 2 indicators aligned, marginal setup
+D:  Conflicting indicators, poor timing, unclear trend
+F:  Counter-trend, no confirmation, high risk environment
+
 INSTRUCTIONS:
 1. Weight chart patterns and divergence signals HIGHEST (they are structural)
 2. Use RSI series to assess momentum trajectory, not just current value
 3. Use support/resistance from pivot points and clusters to set key levels
 4. ATR tells you volatility — factor this into confidence (high ATR = lower confidence)
 5. Confluence of 4+ indicators in the same direction = high confidence
+6. Provide competing bull and bear thesis — intellectual honesty makes better traders
 
 Return ONLY a valid JSON object:
 {
   "bias": "bullish" | "bearish" | "neutral",
   "confidence": <integer 30-90; reduce if divergence conflicts with trend, raise if 5+ signals agree>,
+  "grade": "A+" | "A" | "B" | "C" | "D" | "F",
   "summary": "<2-3 sentences citing specific values: price vs SMAs, RSI level, key pattern detected, what trader should watch. Be precise and actionable.>",
   "trend": "<1-2 sentences: SMA relationships, price position vs 200d, Ichimoku stance>",
   "momentum": "<1 sentence: RSI trajectory + MACD histogram direction + divergence if present>",
   "volatility": "<1 sentence: ATR as % of price + Bollinger bandwidth + what it means for position sizing>",
+  "bullCase": "<2-3 sentences: the strongest technical argument for a move higher. Cite specific levels, patterns, or indicator signals. What would trigger an upside breakout?>",
+  "bearCase": "<2-3 sentences: the strongest technical argument for a move lower. What is the key resistance wall or deteriorating signal that threatens bulls?>",
+  "invalidationLevel": <number: exact price that, if broken, proves the bullish case wrong. For bearish bias, the level that would flip the analysis. Use nearest support/resistance.>,
+  "tradePlan": {
+    "entry": <number: ideal entry price — current price or pullback level>,
+    "stop": <number: stop loss — 1.5x ATR below entry for longs>,
+    "target1": <number: first target — nearest resistance or 2x ATR above entry>,
+    "target2": <number: second target — next resistance or 3x ATR above entry>,
+    "rrRatio": <decimal: (target1 - entry) / (entry - stop), rounded to 1 decimal>
+  },
   "keyLevels": [
     { "type": "resistance", "price": <number from resistance clusters or R1/R2>, "description": "<why this level matters>" },
     { "type": "resistance", "price": <number>, "description": "<why>" },
@@ -145,7 +165,9 @@ Return ONLY a valid JSON object:
     { "name": "SMA Trend", "value": "<above/below 200d>", "interpretation": "Bullish|Bearish|Neutral" },
     { "name": "Chart Pattern", "value": "<pattern name or None>", "interpretation": "Bullish|Bearish|Neutral" },
     { "name": "Volume", "value": "${indicators.volumeRatio ?? "N/A"}x avg${indicators.volumeSpike ? " SPIKE" : ""}", "interpretation": "High Conviction|Low Conviction|Normal" },
-    { "name": "RSI Divergence", "value": "${patterns.divergence.type ?? "None"}", "interpretation": "Bullish|Bearish|Neutral" }
+    { "name": "RSI Divergence", "value": "${patterns.divergence.type ?? "None"}", "interpretation": "Bullish|Bearish|Neutral" },
+    { "name": "Ichimoku", "value": "<above/below cloud>", "interpretation": "Bullish|Bearish|Neutral" },
+    { "name": "ADX Trend Strength", "value": "<strong/weak trend>", "interpretation": "Bullish|Bearish|Neutral" }
   ]
 }
 
@@ -167,10 +189,15 @@ Paper trading only — not financial advice. Cite actual numbers from the data.`
       timeframe,
       bias: parsed.bias ?? "neutral",
       confidence: parsed.confidence ?? 50,
+      grade: parsed.grade ?? "C",
       summary: parsed.summary ?? "Analysis unavailable.",
       trend: parsed.trend ?? "",
       momentum: parsed.momentum ?? "",
       volatility: parsed.volatility ?? "",
+      bullCase: parsed.bullCase ?? null,
+      bearCase: parsed.bearCase ?? null,
+      invalidationLevel: parsed.invalidationLevel ?? null,
+      tradePlan: parsed.tradePlan ?? null,
       keyLevels: parsed.keyLevels ?? buildFallbackLevels(indicators, quote.price, patterns),
       signals: parsed.signals ?? buildFallbackSignals(indicators, quote.changePercent, patterns),
       indicators,
