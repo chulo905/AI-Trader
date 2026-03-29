@@ -1,4 +1,4 @@
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai } from "./openai-client";
 import { runFinBert, aggregateFinBertScores } from "./finbert.js";
 import { logger } from "./logger";
 

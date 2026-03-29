@@ -3,7 +3,7 @@ import { db, tradesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getSingleQuote, getHistory } from "../lib/tradersage";
 import { computeIndicators, type OHLCVBar } from "../lib/technicals";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai } from "../lib/openai-client";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();

@@ -75,7 +75,7 @@ router.get("/positions", async (_req: Request, res: Response, next: NextFunction
       const q = await getSingleQuote(trade.symbol);
       const currentPrice = q.price;
 
-      const { unrealizedPnl, unrealizedPnlPercent } = calculateUnrealizedPnl(trade.side, trade.entryPrice, currentPrice, trade.shares);
+      const { unrealizedPnl, unrealizedPnlPercent } = calculateUnrealizedPnl(trade.side as "long" | "short", trade.entryPrice, currentPrice, trade.shares);
 
       return {
         id: trade.id,

@@ -36,7 +36,7 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 
 router.put("/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
+    const id = parseInt(req.params["id"] as string, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID", code: "VALIDATION_ERROR", message: "id must be a number" });
       return;
@@ -72,7 +72,7 @@ router.put("/:id", async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete("/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
+    const id = parseInt(req.params["id"] as string, 10);
     await db.delete(watchlistsTable).where(eq(watchlistsTable.id, id));
     res.status(204).send();
   } catch (err) {
@@ -82,7 +82,7 @@ router.delete("/:id", async (req: Request, res: Response, next: NextFunction) =>
 
 router.post("/:id/symbols", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
+    const id = parseInt(req.params["id"] as string, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID", code: "VALIDATION_ERROR", message: "id must be a number" });
       return;
@@ -117,8 +117,8 @@ router.post("/:id/symbols", async (req: Request, res: Response, next: NextFuncti
 
 router.delete("/:id/symbols/:symbol", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
-    const symbol = req.params["symbol"]!.toUpperCase();
+    const id = parseInt(req.params["id"] as string, 10);
+    const symbol = String(req.params["symbol"]).toUpperCase();
 
     const [existing] = await db.select().from(watchlistsTable).where(eq(watchlistsTable.id, id));
     if (!existing) {

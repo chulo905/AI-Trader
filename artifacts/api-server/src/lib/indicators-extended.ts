@@ -65,7 +65,7 @@ export function computeExtendedIndicators(bars: OHLCVBar[]): ExtendedIndicators 
         low: lows,
         conversionPeriod: 9,
         basePeriod: 26,
-        simpleCloudConversionPeriod: 52,
+        spanPeriod: 52,
         displacement: 26,
       };
       const result = IchimokuCloud.calculate(ichimokuInput);

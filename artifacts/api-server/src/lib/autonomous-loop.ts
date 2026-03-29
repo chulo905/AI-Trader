@@ -4,7 +4,7 @@ import { getSingleQuote, getHistory } from "./tradersage";
 import { computeIndicators, type OHLCVBar } from "./technicals";
 import { computeExtendedIndicators } from "./indicators-extended";
 import { checkRisk, enforceStopLosses } from "./risk-manager";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai } from "./openai-client";
 import { logger } from "./logger";
 
 const LOOP_INTERVAL_MS = 60 * 1000;

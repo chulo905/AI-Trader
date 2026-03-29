@@ -1,4 +1,4 @@
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai } from "./openai-client";
 import { getHistory, getSingleQuote } from "./tradersage";
 import { computeIndicators, interpretIndicators, type OHLCVBar } from "./technicals";
 import { computeExtendedIndicators, interpretExtendedIndicators } from "./indicators-extended";

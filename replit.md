@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript — AI Trading Terminal (paper trading only). Each package manages its own dependencies.
 
 ## Stack
 

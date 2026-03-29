@@ -5,7 +5,7 @@ import { getSentiment } from "../lib/sentiment";
 const router: IRouter = Router();
 
 router.get("/:symbol", async (req: Request, res: Response, next: NextFunction) => {
-  const symbol = req.params["symbol"]!.toUpperCase();
+  const symbol = String(req.params["symbol"]).toUpperCase();
 
   try {
     const quote = await getSingleQuote(symbol);

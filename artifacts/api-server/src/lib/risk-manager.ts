@@ -1,4 +1,4 @@
-import { db, tradesTable, riskSettingsTable, settingsTable } from "@workspace/db";
+import { db, tradesTable, settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export interface RiskCheckResult {

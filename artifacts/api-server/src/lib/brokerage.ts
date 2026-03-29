@@ -106,7 +106,7 @@ class AlpacaAdapter implements BrokerageAdapter {
   async getAccount(): Promise<BrokerageAccount> {
     if (!this.connected) throw new Error("Alpaca not connected. Set ALPACA_API_KEY and ALPACA_API_SECRET.");
     const res = await fetch(`${this.baseUrl}/v2/account`, { headers: this.headers });
-    const data = await res.json();
+    const data = await res.json() as any;
     return {
       equity: parseFloat(data.equity ?? "0"),
       cash: parseFloat(data.cash ?? "0"),
@@ -121,7 +121,7 @@ class AlpacaAdapter implements BrokerageAdapter {
   async getPositions(): Promise<BrokeragePosition[]> {
     if (!this.connected) return [];
     const res = await fetch(`${this.baseUrl}/v2/positions`, { headers: this.headers });
-    const data = await res.json();
+    const data = await res.json() as any;
     return (data ?? []).map((p: any) => ({
       symbol: p.symbol,
       qty: parseFloat(p.qty),
@@ -148,7 +148,7 @@ class AlpacaAdapter implements BrokerageAdapter {
       headers: this.headers,
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    const data = await res.json() as any;
     return {
       orderId: data.id,
       status: data.status,
@@ -170,7 +170,7 @@ class AlpacaAdapter implements BrokerageAdapter {
       return sharedIsMarketOpen();
     }
     const res = await fetch(`${this.baseUrl}/v2/clock`, { headers: this.headers });
-    const data = await res.json();
+    const data = await res.json() as any;
     return data.is_open ?? false;
   }
 }

@@ -72,7 +72,7 @@ router.post("/configs", async (req: Request, res: Response, next: NextFunction) 
 });
 
 router.patch("/configs/:symbol/toggle", async (req: Request, res: Response, next: NextFunction) => {
-  const symbol = req.params["symbol"]!.toUpperCase();
+  const symbol = String(req.params["symbol"]).toUpperCase();
   try {
     const [existing] = await db.select().from(autonomousConfigTable)
       .where(eq(autonomousConfigTable.symbol, symbol));
@@ -98,7 +98,7 @@ router.patch("/configs/:symbol/toggle", async (req: Request, res: Response, next
 });
 
 router.delete("/configs/:symbol", async (req: Request, res: Response, next: NextFunction) => {
-  const symbol = req.params["symbol"]!.toUpperCase();
+  const symbol = String(req.params["symbol"]).toUpperCase();
   try {
     await db.delete(autonomousConfigTable).where(eq(autonomousConfigTable.symbol, symbol));
     res.json({ deleted: true, symbol });

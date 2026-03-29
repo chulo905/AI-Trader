@@ -100,7 +100,7 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 
 router.post("/:id/close", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
+    const id = parseInt(req.params["id"] as string, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid trade ID", code: "VALIDATION_ERROR", message: "id must be a number" });
       return;
@@ -134,7 +134,7 @@ router.post("/:id/close", async (req: Request, res: Response, next: NextFunction
         throw Object.assign(new Error("Trade is already closed"), { statusCode: 400, code: "ALREADY_CLOSED" });
       }
 
-      const { realizedPnl, realizedPnlPercent } = calculatePnl(trade.side, trade.entryPrice, closePrice!, trade.shares);
+      const { realizedPnl, realizedPnlPercent } = calculatePnl(trade.side as "long" | "short", trade.entryPrice, closePrice!, trade.shares);
 
       const [closed] = await tx.update(tradesTable).set({
         exitPrice: closePrice,
