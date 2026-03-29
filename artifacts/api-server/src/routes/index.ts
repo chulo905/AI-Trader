@@ -8,6 +8,12 @@ import alertsRouter from "./alerts";
 import analysisRouter from "./analysis";
 import settingsRouter from "./settings";
 import autopilotRouter from "./autopilot";
+import autonomousRouter from "./autonomous";
+import riskRouter from "./risk";
+import backtestRouter from "./backtest";
+import sentimentRouter from "./sentiment";
+import regimeRouter from "./regime";
+import brokerageRouter from "./brokerage";
 
 const router: IRouter = Router();
 
@@ -20,5 +26,11 @@ router.use("/alerts", alertsRouter);
 router.use("/analysis", analysisRouter);
 router.use("/settings", settingsRouter);
 router.use("/autopilot", autopilotRouter);
+router.use("/autonomous", autonomousRouter);
+router.use("/risk", riskRouter);
+router.use("/backtest", backtestRouter);
+router.use("/sentiment", sentimentRouter);
+router.use("/regime", regimeRouter);
+router.use("/brokerage", brokerageRouter);
 
 export default router;

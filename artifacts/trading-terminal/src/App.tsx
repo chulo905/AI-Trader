@@ -12,6 +12,11 @@ import DiscoverPage from "@/pages/discover";
 import PortfolioPage from "@/pages/portfolio";
 import AlertsPage from "@/pages/alerts";
 import SettingsPage from "@/pages/settings";
+import AutonomousPage from "@/pages/autonomous";
+import RiskPage from "@/pages/risk";
+import BacktestingPage from "@/pages/backtesting";
+import SentimentPage from "@/pages/sentiment";
+import BrokeragePage from "@/pages/brokerage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +39,11 @@ function Router() {
         <Route path="/portfolio" component={PortfolioPage} />
         <Route path="/alerts" component={AlertsPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/autonomous" component={AutonomousPage} />
+        <Route path="/risk" component={RiskPage} />
+        <Route path="/backtest" component={BacktestingPage} />
+        <Route path="/sentiment" component={SentimentPage} />
+        <Route path="/brokerage" component={BrokeragePage} />
         {/* Legacy redirects */}
         <Route path="/watchlist"><Redirect to="/discover" /></Route>
         <Route path="/analysis"><Redirect to="/autopilot" /></Route>

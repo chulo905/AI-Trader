@@ -1,0 +1,182 @@
+import { db, tradesTable, riskSettingsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
+export interface RiskCheckResult {
+  allowed: boolean;
+  reason?: string;
+  riskLevel: "low" | "medium" | "high" | "blocked";
+}
+
+export interface PortfolioMetrics {
+  equity: number;
+  openPositions: number;
+  todayRealizedLoss: number;
+  totalExposure: number;
+  maxDrawdown: number;
+}
+
+const DEFAULT_SETTINGS = {
+  maxDailyLoss: 500,
+  maxPositionSize: 0.1,
+  maxOpenPositions: 5,
+  stopLossEnforcement: true,
+  maxDrawdownPct: 0.15,
+  tradingEnabled: true,
+};
+
+export async function getRiskSettings() {
+  try {
+    const rows = await db.select().from(riskSettingsTable).limit(1);
+    return rows[0] ?? DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export async function getPortfolioMetrics(currentPrices: Record<string, number> = {}): Promise<PortfolioMetrics> {
+  const STARTING_EQUITY = 100_000;
+
+  try {
+    const allTrades = await db.select().from(tradesTable);
+    const openTrades = allTrades.filter(t => t.status === "open");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayClosedTrades = allTrades.filter(t =>
+      t.status === "closed" && t.closedAt && new Date(t.closedAt) >= today
+    );
+
+    const todayRealizedLoss = todayClosedTrades
+      .filter(t => (t.realizedPnl ?? 0) < 0)
+      .reduce((sum, t) => sum + Math.abs(t.realizedPnl ?? 0), 0);
+
+    const unrealizedPnl = openTrades.reduce((sum, t) => {
+      const currentPrice = currentPrices[t.symbol] ?? t.entryPrice;
+      return sum + (currentPrice - t.entryPrice) * t.shares;
+    }, 0);
+
+    const realizedPnl = allTrades
+      .filter(t => t.status === "closed")
+      .reduce((sum, t) => sum + (t.realizedPnl ?? 0), 0);
+
+    const equity = STARTING_EQUITY + realizedPnl + unrealizedPnl;
+    const totalExposure = openTrades.reduce((sum, t) => sum + t.entryPrice * t.shares, 0);
+
+    const maxDrawdown = Math.max(0, (STARTING_EQUITY - equity) / STARTING_EQUITY);
+
+    return {
+      equity,
+      openPositions: openTrades.length,
+      todayRealizedLoss,
+      totalExposure,
+      maxDrawdown,
+    };
+  } catch {
+    return {
+      equity: STARTING_EQUITY,
+      openPositions: 0,
+      todayRealizedLoss: 0,
+      totalExposure: 0,
+      maxDrawdown: 0,
+    };
+  }
+}
+
+export async function checkRisk(
+  action: string,
+  symbol: string,
+  shares: number,
+  entryPrice: number,
+  currentPrices: Record<string, number> = {}
+): Promise<RiskCheckResult> {
+  const settings = await getRiskSettings();
+
+  if (!settings.tradingEnabled) {
+    return { allowed: false, reason: "Trading is currently disabled in risk settings.", riskLevel: "blocked" };
+  }
+
+  if (action === "HOLD") {
+    return { allowed: true, riskLevel: "low" };
+  }
+
+  const metrics = await getPortfolioMetrics(currentPrices);
+
+  if (action === "BUY" || action === "STRONG BUY") {
+    if (metrics.openPositions >= settings.maxOpenPositions) {
+      return {
+        allowed: false,
+        reason: `Max open positions reached (${settings.maxOpenPositions}). Close some positions before opening new ones.`,
+        riskLevel: "blocked",
+      };
+    }
+
+    const tradeValue = shares * entryPrice;
+    const positionPct = tradeValue / metrics.equity;
+
+    if (positionPct > settings.maxPositionSize) {
+      const maxShares = Math.floor((metrics.equity * settings.maxPositionSize) / entryPrice);
+      return {
+        allowed: false,
+        reason: `Position size ${(positionPct * 100).toFixed(1)}% exceeds max allowed ${(settings.maxPositionSize * 100).toFixed(0)}%. Max ${maxShares} shares at this price.`,
+        riskLevel: "blocked",
+      };
+    }
+
+    if (metrics.todayRealizedLoss >= settings.maxDailyLoss) {
+      return {
+        allowed: false,
+        reason: `Daily loss limit of $${settings.maxDailyLoss} reached. No more trades today.`,
+        riskLevel: "blocked",
+      };
+    }
+
+    if (metrics.maxDrawdown >= settings.maxDrawdownPct) {
+      return {
+        allowed: false,
+        reason: `Portfolio drawdown (${(metrics.maxDrawdown * 100).toFixed(1)}%) exceeds max allowed ${(settings.maxDrawdownPct * 100).toFixed(0)}%. Protect capital first.`,
+        riskLevel: "blocked",
+      };
+    }
+
+    const riskLevel = positionPct > 0.07 ? "high" : positionPct > 0.04 ? "medium" : "low";
+    return { allowed: true, riskLevel };
+  }
+
+  return { allowed: true, riskLevel: "low" };
+}
+
+export async function enforceStopLosses(currentPrices: Record<string, number>): Promise<{ closed: string[]; triggered: number }> {
+  const settings = await getRiskSettings();
+  if (!settings.stopLossEnforcement) return { closed: [], triggered: 0 };
+
+  const openTrades = await db.select().from(tradesTable).where(eq(tradesTable.status, "open"));
+  const closed: string[] = [];
+
+  for (const trade of openTrades) {
+    if (!trade.stopLoss) continue;
+    const currentPrice = currentPrices[trade.symbol];
+    if (!currentPrice) continue;
+
+    const hitStopLoss = trade.side === "long" && currentPrice <= trade.stopLoss;
+    const hitTakeProfit = trade.takeProfit && trade.side === "long" && currentPrice >= trade.takeProfit;
+
+    if (hitStopLoss || hitTakeProfit) {
+      const realizedPnl = (currentPrice - trade.entryPrice) * trade.shares;
+      const realizedPnlPercent = (realizedPnl / (trade.entryPrice * trade.shares)) * 100;
+      const reason = hitTakeProfit ? "Take Profit" : "Stop Loss";
+
+      await db.update(tradesTable).set({
+        exitPrice: currentPrice,
+        realizedPnl: Math.round(realizedPnl * 100) / 100,
+        realizedPnlPercent: Math.round(realizedPnlPercent * 100) / 100,
+        status: "closed",
+        closedAt: new Date(),
+        notes: `Risk Manager: ${reason} triggered at $${currentPrice}`,
+      }).where(eq(tradesTable.id, trade.id));
+
+      closed.push(`${trade.symbol} (${reason}: $${currentPrice})`);
+    }
+  }
+
+  return { closed, triggered: closed.length };
+}
