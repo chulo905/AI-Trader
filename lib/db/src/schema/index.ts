@@ -5,3 +5,8 @@ export * from "./settings";
 export * from "./conversations";
 export * from "./messages";
 export * from "./autonomous-config";
+export * from "./portfolio-snapshots";
+export * from "./ai-decisions";
+export * from "./market-data-cache";
+export * from "./sentiment-cache";
+export * from "./trade-journal";
