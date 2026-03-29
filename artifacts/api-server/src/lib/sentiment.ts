@@ -1,4 +1,5 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { runFinBert, aggregateFinBertScores } from "./finbert.js";
 
 export interface SentimentResult {
   symbol: string;
@@ -17,17 +18,33 @@ export interface SentimentResult {
 const sentimentCache = new Map<string, { data: SentimentResult; expiresAt: number }>();
 const CACHE_TTL = 10 * 60 * 1000;
 
+function scoreToSentiment(score: number): SentimentResult["overallSentiment"] {
+  if (score >= 70) return "very-bullish";
+  if (score >= 58) return "bullish";
+  if (score <= 30) return "very-bearish";
+  if (score <= 42) return "bearish";
+  return "neutral";
+}
+
+function scoreToLabel(score: number): string {
+  if (score >= 70) return "Strongly Bullish";
+  if (score >= 58) return "Bullish";
+  if (score >= 53) return "Slightly Bullish";
+  if (score <= 30) return "Strongly Bearish";
+  if (score <= 42) return "Bearish";
+  if (score <= 47) return "Slightly Bearish";
+  return "Neutral";
+}
+
 function buildFallbackSentiment(symbol: string, price: number, changePercent: number): SentimentResult {
   const trending = Math.abs(changePercent) > 2;
   const score = changePercent > 2 ? 70 : changePercent > 0.5 ? 60 : changePercent < -2 ? 30 : changePercent < -0.5 ? 40 : 50;
 
-  const sentiment: SentimentResult["overallSentiment"] = score >= 65 ? "bullish" : score >= 55 ? "bullish" : score <= 35 ? "bearish" : "neutral";
-
   return {
     symbol,
-    overallSentiment: sentiment,
+    overallSentiment: scoreToSentiment(score),
     score,
-    label: score >= 65 ? "Bullish" : score >= 55 ? "Slightly Bullish" : score <= 35 ? "Bearish" : score <= 45 ? "Slightly Bearish" : "Neutral",
+    label: scoreToLabel(score),
     summary: `${symbol} is showing ${changePercent >= 0 ? "positive" : "negative"} momentum with ${trending ? "significant" : "modest"} market activity today.`,
     keyFactors: [
       `Price ${changePercent >= 0 ? "up" : "down"} ${Math.abs(changePercent).toFixed(2)}% today`,
@@ -79,11 +96,32 @@ Return ONLY valid JSON:
       });
 
       const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
+      const gptScore: number = parsed.score ?? 50;
+
+      const headlines: string[] = (parsed.newsHeadlines ?? []).map(
+        (h: { headline: string }) => h.headline
+      );
+
+      let finalScore = gptScore;
+
+      if (headlines.length > 0) {
+        try {
+          const finbertResults = await runFinBert(headlines, `finbert:${symbol}`);
+          const { score: finbertScore } = aggregateFinBertScores(finbertResults);
+          finalScore = Math.round(gptScore * 0.6 + finbertScore * 0.4);
+          console.log(`[Sentiment] ${symbol} — GPT: ${gptScore}, FinBERT: ${finbertScore}, Blended: ${finalScore}`);
+        } catch (fbErr) {
+          console.error("[Sentiment] FinBERT scoring failed, using GPT score only:", fbErr);
+        }
+      }
+
+      finalScore = Math.max(0, Math.min(100, finalScore));
+
       const result: SentimentResult = {
         symbol,
-        overallSentiment: parsed.overallSentiment ?? "neutral",
-        score: parsed.score ?? 50,
-        label: parsed.label ?? "Neutral",
+        overallSentiment: scoreToSentiment(finalScore),
+        score: finalScore,
+        label: scoreToLabel(finalScore),
         summary: parsed.summary ?? "",
         keyFactors: parsed.keyFactors ?? [],
         newsHeadlines: parsed.newsHeadlines ?? [],
