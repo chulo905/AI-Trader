@@ -15,17 +15,6 @@ export const autonomousConfigTable = pgTable("autonomous_config", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const riskSettingsTable = pgTable("risk_settings", {
-  id: serial("id").primaryKey(),
-  maxDailyLoss: real("max_daily_loss").notNull().default(500),
-  maxPositionSize: real("max_position_size").notNull().default(0.1),
-  maxOpenPositions: integer("max_open_positions").notNull().default(5),
-  stopLossEnforcement: boolean("stop_loss_enforcement").notNull().default(true),
-  maxDrawdownPct: real("max_drawdown_pct").notNull().default(0.15),
-  tradingEnabled: boolean("trading_enabled").notNull().default(true),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
 export const backtestResultsTable = pgTable("backtest_results", {
   id: serial("id").primaryKey(),
   symbol: text("symbol").notNull(),
@@ -44,5 +33,4 @@ export const backtestResultsTable = pgTable("backtest_results", {
 });
 
 export type AutonomousConfig = typeof autonomousConfigTable.$inferSelect;
-export type RiskSettings = typeof riskSettingsTable.$inferSelect;
 export type BacktestResult = typeof backtestResultsTable.$inferSelect;

@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, riskSettingsTable } from "@workspace/db";
+import { db, settingsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { getRiskSettings, getPortfolioMetrics, enforceStopLosses } from "../lib/risk-manager";
 
 const router: IRouter = Router();
@@ -17,10 +18,10 @@ router.put("/settings", async (req, res) => {
   const { maxDailyLoss, maxPositionSize, maxOpenPositions, stopLossEnforcement, maxDrawdownPct, tradingEnabled } = req.body;
 
   try {
-    const existing = await db.select().from(riskSettingsTable).limit(1);
+    const existing = await db.select().from(settingsTable).limit(1);
 
     if (existing.length > 0) {
-      const [updated] = await db.update(riskSettingsTable).set({
+      const [updated] = await db.update(settingsTable).set({
         ...(maxDailyLoss !== undefined && { maxDailyLoss }),
         ...(maxPositionSize !== undefined && { maxPositionSize }),
         ...(maxOpenPositions !== undefined && { maxOpenPositions }),
@@ -28,10 +29,10 @@ router.put("/settings", async (req, res) => {
         ...(maxDrawdownPct !== undefined && { maxDrawdownPct }),
         ...(tradingEnabled !== undefined && { tradingEnabled }),
         updatedAt: new Date(),
-      }).returning();
+      }).where(eq(settingsTable.id, existing[0]!.id)).returning();
       res.json(updated);
     } else {
-      const [created] = await db.insert(riskSettingsTable).values({
+      const [created] = await db.insert(settingsTable).values({
         maxDailyLoss: maxDailyLoss ?? 500,
         maxPositionSize: maxPositionSize ?? 0.1,
         maxOpenPositions: maxOpenPositions ?? 5,

@@ -1,4 +1,4 @@
-import { db, tradesTable, riskSettingsTable } from "@workspace/db";
+import { db, tradesTable, settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export interface RiskCheckResult {
@@ -26,8 +26,17 @@ const DEFAULT_SETTINGS = {
 
 export async function getRiskSettings() {
   try {
-    const rows = await db.select().from(riskSettingsTable).limit(1);
-    return rows[0] ?? DEFAULT_SETTINGS;
+    const rows = await db.select().from(settingsTable).limit(1);
+    if (!rows[0]) return DEFAULT_SETTINGS;
+    const s = rows[0];
+    return {
+      maxDailyLoss: s.maxDailyLoss,
+      maxPositionSize: s.maxPositionSize,
+      maxOpenPositions: s.maxOpenPositions,
+      stopLossEnforcement: s.stopLossEnforcement,
+      maxDrawdownPct: s.maxDrawdownPct,
+      tradingEnabled: s.tradingEnabled,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
