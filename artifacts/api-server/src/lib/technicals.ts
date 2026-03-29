@@ -9,6 +9,7 @@ export interface OHLCVBar {
 
 export interface TechnicalIndicators {
   rsi14: number | null;
+  rsiSeries: number[];
   sma20: number | null;
   sma50: number | null;
   sma200: number | null;
@@ -19,12 +20,14 @@ export interface TechnicalIndicators {
   atr14: number | null;
   vwap: number | null;
   volumeRatio: number | null;
+  volumeSpike: boolean;
   priceVsSma20: number | null;
   priceVsSma50: number | null;
   priceVsSma200: number | null;
   highOf52w: number | null;
   lowOf52w: number | null;
   pctFromHigh: number | null;
+  maSignal: "golden-cross" | "death-cross" | "neutral";
 }
 
 function sma(prices: number[], period: number): number | null {
@@ -126,16 +129,38 @@ function computeVWAP(bars: OHLCVBar[]): number | null {
   return totalV > 0 ? Math.round((totalPV / totalV) * 100) / 100 : null;
 }
 
-export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
-  if (bars.length === 0) {
-    return {
-      rsi14: null, sma20: null, sma50: null, sma200: null,
-      ema9: null, ema21: null, macd: null, bollingerBands: null,
-      atr14: null, vwap: null, volumeRatio: null,
-      priceVsSma20: null, priceVsSma50: null, priceVsSma200: null,
-      highOf52w: null, lowOf52w: null, pctFromHigh: null,
-    };
+function computeRSISeries(prices: number[], period = 14, seriesLength = 20): number[] {
+  const series: number[] = [];
+  const start = Math.max(period + 1, prices.length - seriesLength - period);
+  for (let end = start + period + 1; end <= prices.length; end++) {
+    const subset = prices.slice(0, end);
+    const val = computeRSI(subset, period);
+    if (val !== null) series.push(Math.round(val * 10) / 10);
   }
+  return series.slice(-seriesLength);
+}
+
+function detectMASignal(closes: number[]): "golden-cross" | "death-cross" | "neutral" {
+  if (closes.length < 202) return "neutral";
+  const prev50 = closes.slice(-51, -1).reduce((a, b) => a + b, 0) / 50;
+  const curr50 = closes.slice(-50).reduce((a, b) => a + b, 0) / 50;
+  const prev200 = closes.slice(-201, -1).reduce((a, b) => a + b, 0) / 200;
+  const curr200 = closes.slice(-200).reduce((a, b) => a + b, 0) / 200;
+  if (prev50 < prev200 && curr50 > curr200) return "golden-cross";
+  if (prev50 > prev200 && curr50 < curr200) return "death-cross";
+  return "neutral";
+}
+
+export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
+  const empty: TechnicalIndicators = {
+    rsi14: null, rsiSeries: [], sma20: null, sma50: null, sma200: null,
+    ema9: null, ema21: null, macd: null, bollingerBands: null,
+    atr14: null, vwap: null, volumeRatio: null, volumeSpike: false,
+    priceVsSma20: null, priceVsSma50: null, priceVsSma200: null,
+    highOf52w: null, lowOf52w: null, pctFromHigh: null, maSignal: "neutral",
+  };
+
+  if (bars.length === 0) return empty;
 
   const closes = bars.map(b => b.close);
   const volumes = bars.map(b => b.volume);
@@ -152,6 +177,7 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
   const recentVolAvg = recentVol.length > 0 ? recentVol.reduce((a, b) => a + b, 0) / recentVol.length : 0;
   const prevVolAvg = prevVol.length > 0 ? prevVol.reduce((a, b) => a + b, 0) / prevVol.length : recentVolAvg;
   const volRatio = prevVolAvg > 0 ? recentVolAvg / prevVolAvg : null;
+  const volSpike = volRatio !== null && volRatio >= 2.0;
 
   const highs = bars.map(b => b.high);
   const lows = bars.map(b => b.low);
@@ -159,8 +185,12 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
   const low52w = lows.length > 0 ? Math.min(...lows) : null;
   const pctFromHigh = high52w && high52w > 0 ? ((currentPrice - high52w) / high52w) * 100 : null;
 
+  const rsiVal = computeRSI(closes);
+  const rsiSeries = computeRSISeries(closes);
+
   return {
-    rsi14: computeRSI(closes) !== null ? Math.round(computeRSI(closes)! * 10) / 10 : null,
+    rsi14: rsiVal !== null ? Math.round(rsiVal * 10) / 10 : null,
+    rsiSeries,
     sma20: s20 !== null ? Math.round(s20 * 100) / 100 : null,
     sma50: s50 !== null ? Math.round(s50 * 100) / 100 : null,
     sma200: s200 !== null ? Math.round(s200 * 100) / 100 : null,
@@ -171,12 +201,14 @@ export function computeIndicators(bars: OHLCVBar[]): TechnicalIndicators {
     atr14: computeATR(bars) !== null ? Math.round(computeATR(bars)! * 100) / 100 : null,
     vwap: computeVWAP(bars),
     volumeRatio: volRatio !== null ? Math.round(volRatio * 100) / 100 : null,
+    volumeSpike: volSpike,
     priceVsSma20: s20 !== null ? Math.round(((currentPrice - s20) / s20) * 10000) / 100 : null,
     priceVsSma50: s50 !== null ? Math.round(((currentPrice - s50) / s50) * 10000) / 100 : null,
     priceVsSma200: s200 !== null ? Math.round(((currentPrice - s200) / s200) * 10000) / 100 : null,
     highOf52w: high52w !== null ? Math.round(high52w * 100) / 100 : null,
     lowOf52w: low52w !== null ? Math.round(low52w * 100) / 100 : null,
     pctFromHigh: pctFromHigh !== null ? Math.round(pctFromHigh * 100) / 100 : null,
+    maSignal: detectMASignal(closes),
   };
 }
 

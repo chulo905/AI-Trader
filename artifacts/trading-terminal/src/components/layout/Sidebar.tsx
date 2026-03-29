@@ -4,7 +4,7 @@ import { useGetPortfolio } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/utils";
 import {
   LayoutDashboard, Sparkles, LineChart, Compass, Briefcase,
-  Settings, Bot, Shield, FlaskConical, Newspaper, Cable, Bell,
+  Settings, Bot, Shield, FlaskConical, Newspaper, Cable, Bell, Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +25,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Research",
     items: [
+      { path: "/analysis",  label: "Analysis",   icon: Brain,           desc: "Technical & patterns" },
       { path: "/sentiment", label: "Sentiment",  icon: Newspaper,       desc: "News & sentiment" },
       { path: "/discover",  label: "Discover",   icon: Compass,         desc: "Find opportunities" },
       { path: "/backtest",  label: "Backtest",   icon: FlaskConical,    desc: "Test strategies" },

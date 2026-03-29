@@ -32,7 +32,8 @@ export default function AIPilotPage() {
     execute,
   } = useAiPilotExecution(selectedSymbol);
 
-  const { data: positions } = useGetPositions({ query: { staleTime: 10000 } });
+  const { data: positionsData } = useGetPositions({ query: { staleTime: 10000 } });
+  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
   const closeMutation = useCloseTrade({
     mutation: {
       onSuccess: () => {
@@ -43,7 +44,7 @@ export default function AIPilotPage() {
     }
   });
 
-  const symbolPositions = positions?.filter(p => p.symbol === selectedSymbol && p.side === "long") ?? [];
+  const symbolPositions = positions.filter((p: any) => p.symbol === selectedSymbol && p.side === "long");
   const isBuy  = decision?.action?.toUpperCase().includes("BUY");
   const isSell = decision?.action?.toUpperCase().includes("SELL");
 
