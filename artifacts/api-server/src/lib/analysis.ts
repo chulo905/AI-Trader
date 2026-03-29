@@ -1,145 +1,175 @@
+import { openai } from "@workspace/integrations-openai-ai-server";
 import { getHistory, getSingleQuote } from "./tradersage";
+import { computeIndicators, interpretIndicators, type OHLCVBar } from "./technicals";
+
+const analysisCache = new Map<string, { data: object; expiresAt: number }>();
+const pendingAnalysis = new Set<string>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export async function generateAnalysis(symbol: string, timeframe: string) {
+  const cacheKey = `${symbol}:${timeframe}`;
+  const cached = analysisCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const [quote, history] = await Promise.all([
     getSingleQuote(symbol),
-    getHistory(symbol, timeframe, "1M"),
+    getHistory(symbol, timeframe, "3M"),
   ]);
 
-  const prices = history.map(c => c.close).filter(Boolean);
-  const volumes = history.map(c => c.volume).filter(Boolean);
-  const recentPrices = prices.slice(-5);
-  const prevPrices = prices.slice(-20, -5);
+  const bars: OHLCVBar[] = history.map(h => ({
+    time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
+  }));
+  const indicators = computeIndicators(bars);
 
-  const recentAvg = recentPrices.length > 0 ? recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length : quote.price;
-  const prevAvg = prevPrices.length > 0 ? prevPrices.reduce((a, b) => a + b, 0) / prevPrices.length : quote.price;
+  if (!pendingAnalysis.has(cacheKey)) {
+    pendingAnalysis.add(cacheKey);
+    runLLMInBackground(symbol, timeframe, cacheKey, quote, indicators);
+  }
 
-  const trendDir = recentAvg > prevAvg ? "uptrend" : recentAvg < prevAvg * 0.98 ? "downtrend" : "sideways";
+  return buildFallbackAnalysis(symbol, timeframe, quote, indicators);
+}
 
-  const recentVol = volumes.slice(-5);
-  const recentVolAvg = recentVol.length > 0 ? recentVol.reduce((a, b) => a + b, 0) / recentVol.length : 0;
-  const prevVolAvg = volumes.slice(-20, -5).length > 0
-    ? volumes.slice(-20, -5).reduce((a, b) => a + b, 0) / volumes.slice(-20, -5).length
-    : recentVolAvg;
-  const volRatio = prevVolAvg > 0 ? recentVolAvg / prevVolAvg : 1;
+async function runLLMInBackground(
+  symbol: string,
+  timeframe: string,
+  cacheKey: string,
+  quote: { price: number; changePercent: number },
+  indicators: ReturnType<typeof computeIndicators>
+) {
+  const indicatorSummary = interpretIndicators(indicators, quote.price);
 
-  const priceChanges = prices.slice(1).map((p, i) => p - prices[i]!);
-  const gains = priceChanges.filter(c => c > 0);
-  const losses = priceChanges.filter(c => c < 0);
-  const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / gains.length : 0;
-  const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 0.001;
-  const rs = avgGain / avgLoss;
-  const rsi = 100 - 100 / (1 + rs);
+  const prompt = `You are a professional quantitative analyst generating a technical analysis report for a trading terminal. Analyze the following data and return a structured JSON object.
 
-  let momentum: string;
-  if (rsi > 70) momentum = "Overbought territory — RSI above 70 suggests momentum may be extended";
-  else if (rsi > 55) momentum = "Positive momentum — RSI indicates continued buying pressure";
-  else if (rsi < 30) momentum = "Oversold territory — RSI below 30 suggests potential reversal opportunity";
-  else if (rsi < 45) momentum = "Weakening momentum — selling pressure has been persistent";
-  else momentum = "Neutral momentum — RSI in balanced zone with no clear directional bias";
+SYMBOL: ${symbol}
+CURRENT PRICE: $${quote.price}
+TODAY'S CHANGE: ${quote.changePercent > 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%
+TIMEFRAME: ${timeframe}
 
-  const stdDev = calculateStdDev(prices.slice(-20));
-  const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : quote.price;
-  const volPct = avgPrice > 0 ? (stdDev / avgPrice) * 100 : 0;
-  let volatility: string;
-  if (volPct > 3) volatility = `High volatility (${volPct.toFixed(1)}% 20-day range) — elevated risk, wider stop zones appropriate`;
-  else if (volPct > 1.5) volatility = `Moderate volatility (${volPct.toFixed(1)}% 20-day range) — standard risk parameters apply`;
-  else volatility = `Low volatility (${volPct.toFixed(1)}% 20-day range) — tight trading range, potential for expansion`;
+TECHNICAL INDICATORS (computed from real OHLCV data):
+${indicatorSummary}
 
-  const sortedPrices = [...prices].sort((a, b) => a - b);
-  const len = sortedPrices.length;
-  const support1 = sortedPrices[Math.floor(len * 0.1)] ?? quote.price * 0.95;
-  const support2 = sortedPrices[Math.floor(len * 0.25)] ?? quote.price * 0.97;
-  const resistance1 = sortedPrices[Math.floor(len * 0.75)] ?? quote.price * 1.03;
-  const resistance2 = sortedPrices[Math.floor(len * 0.9)] ?? quote.price * 1.05;
+RAW INDICATOR VALUES:
+- RSI(14): ${indicators.rsi14 ?? "insufficient data"}
+- SMA20: $${indicators.sma20 ?? "N/A"} (price ${indicators.priceVsSma20 !== null ? (indicators.priceVsSma20 >= 0 ? "+" : "") + indicators.priceVsSma20 + "%" : "N/A"} vs SMA20)
+- SMA50: $${indicators.sma50 ?? "N/A"} (price ${indicators.priceVsSma50 !== null ? (indicators.priceVsSma50 >= 0 ? "+" : "") + indicators.priceVsSma50 + "%" : "N/A"} vs SMA50)
+- SMA200: $${indicators.sma200 ?? "N/A"} (price ${indicators.priceVsSma200 !== null ? (indicators.priceVsSma200 >= 0 ? "+" : "") + indicators.priceVsSma200 + "%" : "N/A"} vs SMA200)
+- EMA9: $${indicators.ema9 ?? "N/A"}, EMA21: $${indicators.ema21 ?? "N/A"}
+- MACD: ${indicators.macd ? `${indicators.macd.macd} / Signal: ${indicators.macd.signal} / Histogram: ${indicators.macd.histogram}` : "N/A"}
+- Bollinger Bands: ${indicators.bollingerBands ? `Upper $${indicators.bollingerBands.upper} / Middle $${indicators.bollingerBands.middle} / Lower $${indicators.bollingerBands.lower} / BW: ${indicators.bollingerBands.bandwidth}%` : "N/A"}
+- ATR(14): ${indicators.atr14 ?? "N/A"}
+- Volume Ratio (5d vs 15d): ${indicators.volumeRatio ?? "N/A"}x
+- 52W High: $${indicators.highOf52w ?? "N/A"} (${indicators.pctFromHigh !== null ? indicators.pctFromHigh + "%" : "N/A"} from high)
+- 52W Low: $${indicators.lowOf52w ?? "N/A"}
 
-  const bias = deriveBias(quote.changePercent, rsi, trendDir, volRatio);
-  const confidence = deriveConfidence(quote.changePercent, rsi, volRatio, trendDir);
+Return ONLY a valid JSON object with this exact structure:
+{
+  "bias": "bullish" | "bearish" | "neutral",
+  "confidence": <integer 30-90>,
+  "summary": "<2-3 sentence expert analysis citing specific values. Be precise and actionable.>",
+  "trend": "<1-2 sentences about trend structure using SMA relationships>",
+  "momentum": "<1 sentence about RSI and MACD momentum>",
+  "volatility": "<1 sentence about Bollinger Bands bandwidth and position sizing>",
+  "keyLevels": [
+    { "type": "resistance", "price": <number>, "description": "<why this level matters>" },
+    { "type": "resistance", "price": <number>, "description": "<why this level matters>" },
+    { "type": "support", "price": <number>, "description": "<why this level matters>" },
+    { "type": "support", "price": <number>, "description": "<why this level matters>" }
+  ],
+  "signals": [
+    { "name": "RSI (14)", "value": "<value>", "interpretation": "<Overbought|Oversold|Bullish|Bearish|Neutral>" },
+    { "name": "MACD", "value": "<macd> / <signal>", "interpretation": "<Bullish|Bearish|Neutral>" },
+    { "name": "SMA Trend", "value": "<price vs SMA50>", "interpretation": "<Bullish|Bearish|Neutral>" },
+    { "name": "Bollinger Bands", "value": "<position>", "interpretation": "<Overbought|Oversold|Squeeze|Normal>" },
+    { "name": "Volume", "value": "<ratio>x avg", "interpretation": "<High Conviction|Low Conviction|Normal>" }
+  ]
+}
 
-  const summary = generateSummary(symbol, bias, trendDir, rsi, quote.changePercent, volRatio, stdDev, avgPrice);
+Derive key levels from Bollinger Bands, SMAs, and 52-week range. Paper trading only — not financial advice.`;
 
-  const trend = generateTrendText(trendDir, recentAvg, prevAvg, quote.price);
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5-nano",
+      max_completion_tokens: 8192,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+    });
+
+    const content = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(content);
+
+    const result = {
+      symbol,
+      timeframe,
+      bias: parsed.bias ?? "neutral",
+      confidence: parsed.confidence ?? 50,
+      summary: parsed.summary ?? "Analysis unavailable.",
+      trend: parsed.trend ?? "",
+      momentum: parsed.momentum ?? "",
+      volatility: parsed.volatility ?? "",
+      keyLevels: parsed.keyLevels ?? buildFallbackLevels(indicators, quote.price),
+      signals: parsed.signals ?? buildFallbackSignals(indicators, quote.changePercent),
+      indicators,
+      generatedAt: new Date().toISOString(),
+      aiPowered: true,
+    };
+    analysisCache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
+    console.log(`[AI Analysis] GPT analysis cached for ${cacheKey}`);
+  } catch (err) {
+    console.error("LLM analysis background task failed:", err);
+    analysisCache.delete(cacheKey);
+  } finally {
+    pendingAnalysis.delete(cacheKey);
+  }
+}
+
+function buildFallbackLevels(indicators: ReturnType<typeof computeIndicators>, price: number) {
+  const levels = [];
+  if (indicators.bollingerBands) {
+    levels.push({ type: "resistance", price: indicators.bollingerBands.upper, description: "Upper Bollinger Band — mean reversion zone" });
+    levels.push({ type: "support", price: indicators.bollingerBands.lower, description: "Lower Bollinger Band — mean reversion support" });
+  }
+  if (indicators.sma50) levels.push({ type: "support", price: indicators.sma50, description: "50-day SMA — key institutional support/resistance" });
+  if (indicators.sma200) levels.push({ type: "support", price: indicators.sma200, description: "200-day SMA — primary trend line" });
+  if (levels.length === 0) {
+    levels.push({ type: "resistance", price: Math.round(price * 1.03 * 100) / 100, description: "Near-term resistance zone" });
+    levels.push({ type: "support", price: Math.round(price * 0.97 * 100) / 100, description: "Near-term support zone" });
+  }
+  return levels;
+}
+
+function buildFallbackSignals(indicators: ReturnType<typeof computeIndicators>, changePercent: number) {
+  const rsi = indicators.rsi14;
+  return [
+    { name: "RSI (14)", value: rsi?.toFixed(1) ?? "N/A", interpretation: rsi === null ? "N/A" : rsi > 70 ? "Overbought" : rsi < 30 ? "Oversold" : rsi > 55 ? "Bullish" : rsi < 45 ? "Bearish" : "Neutral" },
+    { name: "MACD", value: indicators.macd ? `${indicators.macd.macd}` : "N/A", interpretation: indicators.macd ? (indicators.macd.histogram > 0 ? "Bullish" : "Bearish") : "N/A" },
+    { name: "SMA Trend", value: indicators.priceVsSma50 !== null ? `${indicators.priceVsSma50 >= 0 ? "+" : ""}${indicators.priceVsSma50}% vs SMA50` : "N/A", interpretation: indicators.priceVsSma50 !== null ? (indicators.priceVsSma50 > 0 ? "Bullish" : "Bearish") : "N/A" },
+    { name: "Bollinger Bands", value: indicators.bollingerBands ? `BW ${indicators.bollingerBands.bandwidth}%` : "N/A", interpretation: indicators.bollingerBands ? (indicators.bollingerBands.bandwidth < 5 ? "Squeeze" : "Normal") : "N/A" },
+    { name: "Volume", value: indicators.volumeRatio ? `${indicators.volumeRatio}x avg` : "N/A", interpretation: indicators.volumeRatio ? (indicators.volumeRatio > 1.5 ? "High Conviction" : indicators.volumeRatio < 0.7 ? "Low Conviction" : "Normal") : "N/A" },
+  ];
+}
+
+function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>) {
+  const rsi = indicators.rsi14;
+  const bias = rsi !== null ? (rsi > 60 ? "bullish" : rsi < 40 ? "bearish" : "neutral") : "neutral";
+  const confidence = rsi !== null ? Math.min(40 + Math.abs(rsi - 50), 88) : 50;
 
   return {
     symbol,
     timeframe,
     bias,
-    confidence,
-    summary,
-    trend,
-    momentum,
-    volatility,
-    keyLevels: [
-      { type: "support", price: Math.round(support1 * 100) / 100, description: "Key support zone — major demand area" },
-      { type: "support", price: Math.round(support2 * 100) / 100, description: "Secondary support — prior consolidation base" },
-      { type: "resistance", price: Math.round(resistance1 * 100) / 100, description: "First resistance — prior supply zone" },
-      { type: "resistance", price: Math.round(resistance2 * 100) / 100, description: "Major resistance — 90th percentile range high" },
-    ],
-    signals: [
-      { name: "RSI (14)", value: rsi.toFixed(1), interpretation: rsi > 70 ? "Overbought" : rsi < 30 ? "Oversold" : "Neutral" },
-      { name: "Trend Direction", value: trendDir.charAt(0).toUpperCase() + trendDir.slice(1), interpretation: trendDir === "uptrend" ? "Bullish" : trendDir === "downtrend" ? "Bearish" : "Neutral" },
-      { name: "Volume Ratio", value: `${volRatio.toFixed(2)}x`, interpretation: volRatio > 1.5 ? "Above average — conviction" : volRatio < 0.7 ? "Below average — low conviction" : "Normal" },
-      { name: "Daily Change", value: `${quote.changePercent > 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`, interpretation: quote.changePercent > 1.5 ? "Strong bullish move" : quote.changePercent < -1.5 ? "Strong bearish move" : "Modest move" },
-      { name: "20-Day Volatility", value: `${volPct.toFixed(1)}%`, interpretation: volPct > 3 ? "High — wider risk zones" : volPct < 1.5 ? "Low — tight range" : "Moderate" },
-    ],
+    confidence: Math.round(confidence),
+    summary: `${symbol} at $${quote.price} (${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}% today). RSI(14) at ${rsi?.toFixed(1) ?? "N/A"} — ${rsi !== null ? (rsi > 70 ? "overbought territory" : rsi < 30 ? "oversold territory" : "neutral momentum zone") : "insufficient data"}. ${indicators.sma50 ? `Price is ${Math.abs(indicators.priceVsSma50!).toFixed(1)}% ${indicators.priceVsSma50! >= 0 ? "above" : "below"} the 50-day SMA.` : ""} AI-enhanced analysis loading in background — refresh in ~30s for GPT insights.`,
+    trend: indicators.priceVsSma50 !== null ? `Price is ${Math.abs(indicators.priceVsSma50).toFixed(1)}% ${indicators.priceVsSma50 >= 0 ? "above" : "below"} the 50-day SMA (${indicators.sma50}). ${indicators.sma20 && indicators.sma50 ? (indicators.sma20 > indicators.sma50 ? "SMA20 above SMA50 — short-term trend is bullish." : "SMA20 below SMA50 — short-term trend is bearish.") : ""}` : "Insufficient data for trend analysis.",
+    momentum: rsi !== null ? `RSI(14) at ${rsi.toFixed(1)} — ${rsi > 70 ? "overbought, momentum may be stretched" : rsi < 30 ? "oversold, potential reversal signal" : rsi > 55 ? "positive momentum" : rsi < 45 ? "weakening momentum" : "balanced, no directional bias"}.${indicators.macd ? ` MACD histogram ${indicators.macd.histogram > 0 ? "positive (bullish)" : "negative (bearish)"}.` : ""}` : "Momentum data unavailable.",
+    volatility: indicators.bollingerBands ? `Bollinger Band width at ${indicators.bollingerBands.bandwidth}% — ${indicators.bollingerBands.bandwidth < 5 ? "volatility squeeze forming, expect expansion" : indicators.bollingerBands.bandwidth > 15 ? "elevated volatility, wider position sizing warranted" : "normal volatility regime"}. ATR(14): $${indicators.atr14 ?? "N/A"}.` : "Volatility data unavailable.",
+    keyLevels: buildFallbackLevels(indicators, quote.price),
+    signals: buildFallbackSignals(indicators, quote.changePercent),
+    indicators,
     generatedAt: new Date().toISOString(),
+    aiPowered: false,
   };
-}
-
-function calculateStdDev(prices: number[]): number {
-  if (prices.length === 0) return 0;
-  const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-  const variance = prices.reduce((sum, p) => sum + Math.pow(p - avg, 2), 0) / prices.length;
-  return Math.sqrt(variance);
-}
-
-function deriveBias(changePercent: number, rsi: number, trend: string, volRatio: number): string {
-  let score = 0;
-  if (changePercent > 1) score += 2;
-  else if (changePercent > 0) score += 1;
-  else if (changePercent < -1) score -= 2;
-  else if (changePercent < 0) score -= 1;
-  if (rsi > 55) score += 1;
-  else if (rsi < 45) score -= 1;
-  if (trend === "uptrend") score += 1;
-  else if (trend === "downtrend") score -= 1;
-  if (volRatio > 1.3) score += (changePercent > 0 ? 1 : -1);
-  if (score >= 2) return "bullish";
-  if (score <= -2) return "bearish";
-  return "neutral";
-}
-
-function deriveConfidence(changePercent: number, rsi: number, volRatio: number, trend: string): number {
-  const absChange = Math.abs(changePercent);
-  let base = 40;
-  base += Math.min(absChange * 8, 25);
-  if (rsi > 65 || rsi < 35) base += 10;
-  if (volRatio > 1.5) base += 10;
-  if (trend !== "sideways") base += 5;
-  return Math.round(Math.min(base, 88));
-}
-
-function generateSummary(symbol: string, bias: string, trend: string, rsi: number, changePercent: number, volRatio: number, stdDev: number, avgPrice: number): string {
-  const volPct = avgPrice > 0 ? (stdDev / avgPrice) * 100 : 0;
-  const biasText = bias === "bullish" ? "a bullish bias" : bias === "bearish" ? "a bearish bias" : "a neutral stance";
-  const trendText = trend === "uptrend" ? "an established uptrend" : trend === "downtrend" ? "a developing downtrend" : "a sideways consolidation";
-  const volText = volRatio > 1.5 ? "above-average volume confirming the move" : volRatio < 0.7 ? "below-average volume suggesting low conviction" : "average volume";
-  const changeText = `${Math.abs(changePercent).toFixed(2)}% ${changePercent >= 0 ? "gain" : "decline"} today`;
-  const rsiText = rsi > 70 ? "RSI is extended above 70 — proceed cautiously" : rsi < 30 ? "RSI is oversold below 30 — potential bounce candidate" : `RSI at ${rsi.toFixed(0)} shows balanced momentum`;
-
-  return `${symbol} is showing ${biasText} within ${trendText}. The stock posted a ${changeText} on ${volText}. ${rsiText}. Volatility at ${volPct.toFixed(1)}% over the past 20 sessions ${volPct > 3 ? "warrants wider position sizing and risk management" : "is within normal range for typical entries"}. This is AI-generated analysis — not financial advice.`;
-}
-
-function generateTrendText(trend: string, recentAvg: number, prevAvg: number, currentPrice: number): string {
-  const pctDiff = prevAvg > 0 ? ((recentAvg - prevAvg) / prevAvg * 100) : 0;
-  switch (trend) {
-    case "uptrend":
-      return `Price is trending higher with a ${Math.abs(pctDiff).toFixed(1)}% advance in the recent 5-session average versus the prior 15 sessions. Current price at $${currentPrice.toFixed(2)} is above the short-term moving average, indicating sustained buying interest. The trend structure remains intact with higher highs and higher lows.`;
-    case "downtrend":
-      return `Price is trending lower with a ${Math.abs(pctDiff).toFixed(1)}% decline in the recent 5-session average versus the prior 15 sessions. Current price at $${currentPrice.toFixed(2)} is below the short-term moving average, indicating persistent selling pressure. The trend structure shows lower highs and lower lows.`;
-    default:
-      return `Price is consolidating in a narrow range with the recent 5-session average within ${Math.abs(pctDiff).toFixed(1)}% of the prior 15-session average. Current price at $${currentPrice.toFixed(2)} is near equilibrium. Range-bound conditions suggest watching for a breakout catalyst.`;
-  }
 }
 
 export async function generateTradeIdeas(limit: number = 10): Promise<object[]> {
@@ -147,44 +177,57 @@ export async function generateTradeIdeas(limit: number = 10): Promise<object[]> 
   const selected = candidates.slice(0, Math.min(limit, candidates.length));
 
   const ideas = await Promise.all(selected.map(async (symbol) => {
-    const quote = await getSingleQuote(symbol);
-    const bias = quote.signal === "bullish" ? "bullish" : quote.signal === "bearish" ? "bearish" : "neutral";
-    const side = bias === "bullish" ? "long" : bias === "bearish" ? "short" : Math.random() > 0.5 ? "long" : "short";
+    const [quote, history] = await Promise.all([
+      getSingleQuote(symbol),
+      getHistory(symbol, "1d", "3M"),
+    ]);
 
+    const bars: OHLCVBar[] = history.map(h => ({
+      time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
+    }));
+    const indicators = computeIndicators(bars);
+
+    const rsi = indicators.rsi14;
+    const macdBullish = indicators.macd !== null ? indicators.macd.histogram > 0 : null;
+    const aboveSma50 = indicators.priceVsSma50 !== null ? indicators.priceVsSma50 > 0 : null;
+    const aboveSma200 = indicators.priceVsSma200 !== null ? indicators.priceVsSma200 > 0 : null;
+
+    let bullScore = 0;
+    if (rsi !== null) { if (rsi > 55) bullScore += 2; else if (rsi < 45) bullScore -= 2; }
+    if (macdBullish === true) bullScore += 2; else if (macdBullish === false) bullScore -= 2;
+    if (aboveSma50 === true) bullScore += 1; else if (aboveSma50 === false) bullScore -= 1;
+    if (aboveSma200 === true) bullScore += 1; else if (aboveSma200 === false) bullScore -= 1;
+    if (quote.changePercent > 1) bullScore += 1; else if (quote.changePercent < -1) bullScore -= 1;
+
+    const bias = bullScore >= 2 ? "bullish" : bullScore <= -2 ? "bearish" : "neutral";
+    const side = bias === "bullish" ? "long" : bias === "bearish" ? "short" : (Math.random() > 0.5 ? "long" : "short");
     const price = quote.price;
-    const volatilityFactor = 0.02;
 
-    const entryLow = Math.round(price * (1 - volatilityFactor * 0.5) * 100) / 100;
-    const entryHigh = Math.round(price * (1 + volatilityFactor * 0.5) * 100) / 100;
+    const atr = indicators.atr14 ?? price * 0.02;
+    const entryLow = Math.round((price - atr * 0.3) * 100) / 100;
+    const entryHigh = Math.round((price + atr * 0.3) * 100) / 100;
 
-    const stopDist = price * 0.025;
-    const targetDist = price * 0.06;
+    const stopDist = atr * 1.5;
+    const targetDist = atr * 3.5;
 
-    const stopLow = side === "long"
-      ? Math.round((price - stopDist * 1.1) * 100) / 100
-      : Math.round((price + stopDist * 0.9) * 100) / 100;
-    const stopHigh = side === "long"
-      ? Math.round((price - stopDist * 0.9) * 100) / 100
-      : Math.round((price + stopDist * 1.1) * 100) / 100;
-
-    const target1 = side === "long"
-      ? Math.round((price + targetDist * 0.8) * 100) / 100
-      : Math.round((price - targetDist * 0.8) * 100) / 100;
-    const target2 = side === "long"
-      ? Math.round((price + targetDist * 1.3) * 100) / 100
-      : Math.round((price - targetDist * 1.3) * 100) / 100;
+    const stopLow = side === "long" ? Math.round((price - stopDist * 1.1) * 100) / 100 : Math.round((price + stopDist * 0.9) * 100) / 100;
+    const stopHigh = side === "long" ? Math.round((price - stopDist * 0.9) * 100) / 100 : Math.round((price + stopDist * 1.1) * 100) / 100;
+    const target1 = side === "long" ? Math.round((price + targetDist * 0.8) * 100) / 100 : Math.round((price - targetDist * 0.8) * 100) / 100;
+    const target2 = side === "long" ? Math.round((price + targetDist * 1.3) * 100) / 100 : Math.round((price - targetDist * 1.3) * 100) / 100;
 
     const riskReward = Math.round((targetDist / stopDist) * 10) / 10;
-    const confidence = quote.signalStrength ?? 55;
+    const confidence = Math.min(40 + Math.abs(bullScore) * 8, 88);
+
+    const rationale = buildRationale(symbol, side, bias, indicators, quote.changePercent, rsi, macdBullish, aboveSma50);
 
     return {
       id: `${symbol}-${Date.now()}`,
       symbol,
       side,
-      entryZone: `$${entryLow} – $${entryHigh}`,
+      entryZone: `$${Math.min(entryLow, entryHigh)} – $${Math.max(entryLow, entryHigh)}`,
       stopZone: `$${Math.min(stopLow, stopHigh)} – $${Math.max(stopLow, stopHigh)}`,
       targetZone: `$${Math.min(target1, target2)} – $${Math.max(target1, target2)}`,
-      rationale: generateRationale(symbol, side, bias, quote.changePercent, confidence),
+      rationale,
       confidence,
       bias,
       riskReward,
@@ -195,10 +238,34 @@ export async function generateTradeIdeas(limit: number = 10): Promise<object[]> 
   return ideas;
 }
 
-function generateRationale(symbol: string, side: string, bias: string, changePercent: number, confidence: number): string {
-  const direction = side === "long" ? "bullish" : "bearish";
-  const changeText = `${Math.abs(changePercent).toFixed(2)}% ${changePercent >= 0 ? "gain" : "decline"}`;
-  const confidenceText = confidence > 75 ? "high-confidence" : confidence > 55 ? "moderate-confidence" : "developing";
+function buildRationale(
+  symbol: string, side: string, bias: string,
+  indicators: ReturnType<typeof computeIndicators>,
+  changePercent: number, rsi: number | null,
+  macdBullish: boolean | null, aboveSma50: boolean | null
+): string {
+  const parts: string[] = [];
 
-  return `${symbol} is showing a ${confidenceText} ${direction} setup with a ${changeText} on elevated volume. The risk/reward is favorable for a ${side} entry at current levels. Trade idea is for paper trading analysis only — not financial advice.`;
+  if (rsi !== null) {
+    if (rsi > 60) parts.push(`RSI(14) at ${rsi.toFixed(0)} shows positive momentum`);
+    else if (rsi < 40) parts.push(`RSI(14) at ${rsi.toFixed(0)} indicates oversold conditions`);
+    else parts.push(`RSI(14) at ${rsi.toFixed(0)} is neutral`);
+  }
+
+  if (macdBullish !== null) {
+    parts.push(`MACD histogram is ${macdBullish ? "positive (bullish crossover)" : "negative (bearish crossover)"}`);
+  }
+
+  if (aboveSma50 !== null && indicators.priceVsSma50 !== null) {
+    parts.push(`price is ${Math.abs(indicators.priceVsSma50).toFixed(1)}% ${aboveSma50 ? "above" : "below"} the 50-day SMA`);
+  }
+
+  if (indicators.volumeRatio !== null && indicators.volumeRatio > 1.3) {
+    parts.push(`volume is ${indicators.volumeRatio}x average confirming the move`);
+  }
+
+  parts.push(`${Math.abs(changePercent).toFixed(2)}% ${changePercent >= 0 ? "gain" : "decline"} today`);
+
+  const setup = parts.join(", ") + ".";
+  return `${symbol} ${bias} ${side} setup: ${setup} Stop uses 1.5× ATR; target 3.5× ATR for ~2.3:1 R/R. Paper trading only — not financial advice.`;
 }
