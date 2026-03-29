@@ -56,9 +56,9 @@ router.post("/configs", async (req: Request, res: Response, next: NextFunction) 
         target: autonomousConfigTable.symbol,
         set: {
           enabled: sql`EXCLUDED.enabled`,
-          budgetPerTrade: sql`EXCLUDED."budgetPerTrade"`,
-          maxShares: sql`EXCLUDED."maxShares"`,
-          intervalMinutes: sql`EXCLUDED."intervalMinutes"`,
+          budgetPerTrade: sql`EXCLUDED.budget_per_trade`,
+          maxShares: sql`EXCLUDED.max_shares`,
+          intervalMinutes: sql`EXCLUDED.interval_minutes`,
           updatedAt: new Date(),
         },
       })
