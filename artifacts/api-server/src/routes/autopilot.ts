@@ -6,6 +6,7 @@ import { computeIndicators, type OHLCVBar } from "../lib/technicals";
 import { computeExtendedIndicators, type ExtendedIndicators } from "../lib/indicators-extended";
 import { analyzePatterns } from "../lib/patterns";
 import { detectMarketRegime } from "../lib/market-regime";
+import { checkRisk } from "../lib/risk-manager";
 import { openai } from "../lib/openai-client";
 import { logger } from "../lib/logger";
 
@@ -364,12 +365,26 @@ router.post("/:symbol/execute", async (req, res) => {
       return;
     }
 
+    const parsedShares = parseFloat(shares);
+    const parsedEntry = parseFloat(entryPrice);
+    const riskCheck = await checkRisk("BUY", symbol, parsedShares, parsedEntry, { [symbol]: parsedEntry });
+    if (!riskCheck.allowed) {
+      res.status(422).json({
+        executed: false,
+        action,
+        symbol,
+        message: riskCheck.reason ?? "Trade blocked by risk manager",
+        code: "RISK_BLOCKED",
+      });
+      return;
+    }
+
     const side = "long";
     const [trade] = await db.insert(tradesTable).values({
       symbol,
       side,
-      shares: parseFloat(shares),
-      entryPrice: parseFloat(entryPrice),
+      shares: parsedShares,
+      entryPrice: parsedEntry,
       stopLoss: stopLoss ? parseFloat(stopLoss) : null,
       takeProfit: takeProfit ? parseFloat(takeProfit) : null,
       notes: `AI Autopilot: ${action}`,
@@ -381,7 +396,7 @@ router.post("/:symbol/execute", async (req, res) => {
       action,
       symbol,
       trade: { ...trade!, openedAt: trade!.openedAt.toISOString(), closedAt: null },
-      message: `AI bought ${shares} shares of ${symbol} at $${entryPrice}.`,
+      message: `AI bought ${parsedShares} shares of ${symbol} at $${parsedEntry}.`,
     });
   } catch (err) {
     logger.error({ symbol, err }, "Autopilot execute error");

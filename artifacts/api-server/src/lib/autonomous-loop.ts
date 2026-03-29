@@ -314,6 +314,17 @@ async function processSymbol(config: typeof autonomousConfigTable.$inferSelect) 
         return;
       }
 
+      const existingOpen = await db.select().from(tradesTable)
+        .where(and(eq(tradesTable.status, "open"), eq(tradesTable.symbol, symbol)));
+      if (existingOpen.length > 0) {
+        const reason = `BUY signal (score ${score}) skipped — already holding ${existingOpen.length} open position(s) in ${symbol}. Capital preserved.`;
+        addLog({ ts, symbol, action: "BUY (position-exists)", result: "No trade", reason });
+        await db.update(autonomousConfigTable)
+          .set({ lastRunAt: new Date(), lastAction: "POSITION EXISTS", lastReason: reason, updatedAt: new Date() })
+          .where(eq(autonomousConfigTable.id, config.id));
+        return;
+      }
+
       const shares = Math.min(maxShares, Math.max(1, Math.floor(budgetPerTrade / quote.price)));
       const risk = await checkRisk("BUY", symbol, shares, quote.price, currentPrices);
 
