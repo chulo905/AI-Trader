@@ -585,3 +585,271 @@ export const UpdateSettingsResponse = zod.object({
   alertsEnabled: zod.boolean(),
   defaultWatchlistId: zod.number().nullish(),
 });
+
+/**
+ * @summary Get sentiment analysis for a symbol
+ */
+export const GetSentimentParams = zod.object({
+  symbol: zod.coerce.string(),
+});
+
+export const GetSentimentResponse = zod.object({
+  symbol: zod.string(),
+  overallSentiment: zod.enum([
+    "very-bullish",
+    "bullish",
+    "neutral",
+    "bearish",
+    "very-bearish",
+  ]),
+  score: zod.number(),
+  label: zod.string(),
+  summary: zod.string(),
+  keyFactors: zod.array(zod.string()),
+  newsHeadlines: zod.array(
+    zod.object({
+      headline: zod.string(),
+      sentiment: zod.enum(["positive", "neutral", "negative"]),
+      impact: zod.enum(["high", "medium", "low"]),
+    }),
+  ),
+  socialBuzz: zod.string(),
+  analystConsensus: zod.string(),
+  aiPowered: zod.boolean(),
+  isMock: zod.boolean().optional(),
+  generatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Get risk metrics and settings
+ */
+export const GetRiskMetricsResponse = zod.object({
+  equity: zod.number(),
+  openPositions: zod.number(),
+  todayRealizedLoss: zod.number(),
+  totalExposure: zod.number(),
+  maxDrawdown: zod.number(),
+  isMock: zod.boolean().optional(),
+  settings: zod.object({
+    maxDailyLoss: zod.number(),
+    maxPositionSize: zod.number(),
+    maxOpenPositions: zod.number(),
+    stopLossEnforcement: zod.boolean(),
+    maxDrawdownPct: zod.number(),
+    tradingEnabled: zod.boolean(),
+  }),
+  health: zod.object({
+    dailyLossUsed: zod.number(),
+    drawdownUsed: zod.number(),
+    positionsUsed: zod.number(),
+    overallStatus: zod.enum(["healthy", "warning", "danger"]),
+  }),
+});
+
+/**
+ * @summary Update risk settings
+ */
+export const UpdateRiskSettingsBody = zod.object({
+  maxDailyLoss: zod.number().optional(),
+  maxPositionSize: zod.number().optional(),
+  maxOpenPositions: zod.number().optional(),
+  stopLossEnforcement: zod.boolean().optional(),
+  maxDrawdownPct: zod.number().optional(),
+  tradingEnabled: zod.boolean().optional(),
+});
+
+export const UpdateRiskSettingsResponse = zod.object({
+  equity: zod.number(),
+  openPositions: zod.number(),
+  todayRealizedLoss: zod.number(),
+  totalExposure: zod.number(),
+  maxDrawdown: zod.number(),
+  isMock: zod.boolean().optional(),
+  settings: zod.object({
+    maxDailyLoss: zod.number(),
+    maxPositionSize: zod.number(),
+    maxOpenPositions: zod.number(),
+    stopLossEnforcement: zod.boolean(),
+    maxDrawdownPct: zod.number(),
+    tradingEnabled: zod.boolean(),
+  }),
+  health: zod.object({
+    dailyLossUsed: zod.number(),
+    drawdownUsed: zod.number(),
+    positionsUsed: zod.number(),
+    overallStatus: zod.enum(["healthy", "warning", "danger"]),
+  }),
+});
+
+/**
+ * @summary Get autonomous trading loop status
+ */
+export const GetAutonomousStatusResponse = zod.object({
+  loopRunning: zod.boolean(),
+  watchedSymbols: zod.number(),
+  enabledSymbols: zod.number(),
+  isMock: zod.boolean().optional(),
+  configs: zod.array(
+    zod.object({
+      id: zod.number(),
+      symbol: zod.string(),
+      enabled: zod.boolean(),
+      budgetPerTrade: zod.number(),
+      maxShares: zod.number(),
+      intervalMinutes: zod.number(),
+      lastRunAt: zod.coerce.date().nullish(),
+      lastAction: zod.string().nullish(),
+      lastReason: zod.string().nullish(),
+      totalAutoTrades: zod.number(),
+    }),
+  ),
+  recentLog: zod.array(
+    zod.object({
+      ts: zod.string(),
+      symbol: zod.string(),
+      action: zod.string(),
+      result: zod.string(),
+      reason: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get autonomous trading log
+ */
+export const GetAutonomousLogResponseItem = zod.object({
+  ts: zod.string(),
+  symbol: zod.string(),
+  action: zod.string(),
+  result: zod.string(),
+  reason: zod.string(),
+});
+export const GetAutonomousLogResponse = zod.array(GetAutonomousLogResponseItem);
+
+/**
+ * @summary Add autonomous trading config for a symbol
+ */
+export const AddAutonomousConfigBody = zod.object({
+  symbol: zod.string(),
+  budgetPerTrade: zod.number(),
+  intervalMinutes: zod.number(),
+  enabled: zod.boolean(),
+});
+
+export const AddAutonomousConfigResponse = zod.object({
+  id: zod.number(),
+  symbol: zod.string(),
+  enabled: zod.boolean(),
+  budgetPerTrade: zod.number(),
+  maxShares: zod.number(),
+  intervalMinutes: zod.number(),
+  lastRunAt: zod.coerce.date().nullish(),
+  lastAction: zod.string().nullish(),
+  lastReason: zod.string().nullish(),
+  totalAutoTrades: zod.number(),
+});
+
+/**
+ * @summary Toggle autonomous config for a symbol
+ */
+export const ToggleAutonomousConfigParams = zod.object({
+  symbol: zod.coerce.string(),
+});
+
+export const ToggleAutonomousConfigResponse = zod.object({
+  id: zod.number(),
+  symbol: zod.string(),
+  enabled: zod.boolean(),
+  budgetPerTrade: zod.number(),
+  maxShares: zod.number(),
+  intervalMinutes: zod.number(),
+  lastRunAt: zod.coerce.date().nullish(),
+  lastAction: zod.string().nullish(),
+  lastReason: zod.string().nullish(),
+  totalAutoTrades: zod.number(),
+});
+
+/**
+ * @summary Delete autonomous config for a symbol
+ */
+export const DeleteAutonomousConfigParams = zod.object({
+  symbol: zod.coerce.string(),
+});
+
+/**
+ * @summary Run backtest for a symbol and period
+ */
+export const GetBacktestParams = zod.object({
+  symbol: zod.coerce.string(),
+});
+
+export const GetBacktestQueryParams = zod.object({
+  period: zod.coerce.string().optional(),
+});
+
+export const GetBacktestResponse = zod.object({
+  symbol: zod.string(),
+  period: zod.string(),
+  totalTrades: zod.number(),
+  winningTrades: zod.number(),
+  losingTrades: zod.number(),
+  winRate: zod.number(),
+  totalReturn: zod.number(),
+  totalReturnPct: zod.number(),
+  maxDrawdown: zod.number(),
+  sharpeRatio: zod.number(),
+  profitFactor: zod.number(),
+  avgWin: zod.number(),
+  avgLoss: zod.number(),
+  avgHoldingDays: zod.number(),
+  bestTrade: zod.number(),
+  worstTrade: zod.number(),
+  equity: zod.array(zod.number()),
+  isMock: zod.boolean().optional(),
+  trades: zod.array(
+    zod.object({
+      entryDate: zod.coerce.date(),
+      exitDate: zod.coerce.date(),
+      entryPrice: zod.number(),
+      exitPrice: zod.number(),
+      shares: zod.number(),
+      pnl: zod.number(),
+      pnlPct: zod.number(),
+      holdingDays: zod.number(),
+      reason: zod.string(),
+    }),
+  ),
+  summary: zod.string(),
+});
+
+/**
+ * @summary Get brokerage connection status
+ */
+export const GetBrokerageStatusResponse = zod.object({
+  provider: zod.string(),
+  connected: zod.boolean(),
+  paperTrading: zod.boolean(),
+  alpacaConfigured: zod.boolean(),
+  isMock: zod.boolean().optional(),
+  availableProviders: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      description: zod.string(),
+      configured: zod.boolean(),
+      requiresKeys: zod.array(zod.string()),
+    }),
+  ),
+});
+
+/**
+ * @summary Get market open/close status
+ */
+export const GetMarketStatusResponse = zod.object({
+  isOpen: zod.boolean(),
+  currentTimeET: zod.string(),
+  marketHours: zod.string(),
+  preMarket: zod.boolean(),
+  afterHours: zod.boolean(),
+  isWeekend: zod.boolean(),
+});

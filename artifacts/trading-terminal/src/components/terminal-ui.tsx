@@ -195,13 +195,14 @@ export function TerminalSkeleton({ className }: { className?: string }) {
 }
 
 /* ── Error ─────────────────────────────────────────────────────────────── */
-export function ErrorPanel({ error, className }: { error: any; className?: string }) {
+export function ErrorPanel({ error, className }: { error: unknown; className?: string }) {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "Unknown error";
   return (
     <div className={cn("p-4 border border-bearish/20 bg-bearish-bg rounded-sm flex items-start gap-3", className)}>
       <AlertCircle className="w-4 h-4 text-bearish shrink-0 mt-0.5" />
       <div>
         <p className="text-sm font-semibold text-bearish">Error</p>
-        <p className="text-xs text-muted-foreground mt-0.5 font-mono">{error?.message ?? "Unknown error"}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 font-mono">{message}</p>
       </div>
     </div>
   );

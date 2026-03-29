@@ -1,33 +1,9 @@
 import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { useRiskMetrics, useUpdateRiskSettings } from "@/hooks/use-risk";
+import type { RiskSettingsInput } from "@/hooks/use-risk";
 import { Card, CardHeader, CardTitle, CardContent, PageTransition, Btn } from "@/components/terminal-ui";
-import { Shield, AlertTriangle, TrendingDown, CheckCircle2, XCircle, Save } from "lucide-react";
+import { Shield, AlertTriangle, CheckCircle2, XCircle, Save } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-interface RiskMetrics {
-  equity: number;
-  openPositions: number;
-  todayRealizedLoss: number;
-  totalExposure: number;
-  maxDrawdown: number;
-  settings: {
-    maxDailyLoss: number;
-    maxPositionSize: number;
-    maxOpenPositions: number;
-    stopLossEnforcement: boolean;
-    maxDrawdownPct: number;
-    tradingEnabled: boolean;
-  };
-  health: {
-    dailyLossUsed: number;
-    drawdownUsed: number;
-    positionsUsed: number;
-    overallStatus: "healthy" | "warning" | "danger";
-  };
-}
 
 function GaugeMeter({ value, label, color }: { value: number; label: string; color: string }) {
   return (
@@ -44,41 +20,25 @@ function GaugeMeter({ value, label, color }: { value: number; label: string; col
 }
 
 export default function RiskPage() {
-  const qc = useQueryClient();
-  const { data: metrics } = useQuery<RiskMetrics>({
-    queryKey: ["/api/risk/metrics"],
-    queryFn: () => customFetch(`${BASE}/api/risk/metrics`).then(r => r.json()),
-    refetchInterval: 30000,
-    placeholderData: {
-      equity: 100000, openPositions: 0, todayRealizedLoss: 0, totalExposure: 0, maxDrawdown: 0,
-      settings: { maxDailyLoss: 500, maxPositionSize: 0.1, maxOpenPositions: 5, stopLossEnforcement: true, maxDrawdownPct: 0.15, tradingEnabled: true },
-      health: { dailyLossUsed: 0, drawdownUsed: 0, positionsUsed: 0, overallStatus: "healthy" },
-    },
-  });
-
-  const [form, setForm] = useState<Partial<RiskMetrics["settings"]>>({});
+  const { data: metrics } = useRiskMetrics();
+  const saveMutation = useUpdateRiskSettings();
+  const [form, setForm] = useState<Partial<RiskSettingsInput>>({});
   const [saved, setSaved] = useState(false);
-
-  const saveMutation = useMutation({
-    mutationFn: (data: object) =>
-      customFetch(`${BASE}/api/risk/settings`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then(r => r.json()),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/risk/metrics"] });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    },
-  });
 
   const s = metrics?.settings;
   const health = metrics?.health;
 
   const statusColor = health?.overallStatus === "healthy" ? "text-bullish" : health?.overallStatus === "warning" ? "text-amber-400" : "text-bearish";
-  const statusIcon = health?.overallStatus === "healthy" ? CheckCircle2 : health?.overallStatus === "warning" ? AlertTriangle : XCircle;
-  const StatusIcon = statusIcon;
+  const StatusIcon = health?.overallStatus === "healthy" ? CheckCircle2 : health?.overallStatus === "warning" ? AlertTriangle : XCircle;
+
+  const handleSave = () => {
+    saveMutation.mutate({ data: form }, {
+      onSuccess: () => {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      },
+    });
+  };
 
   return (
     <PageTransition>
@@ -112,7 +72,6 @@ export default function RiskPage() {
               ))}
             </div>
 
-            {/* Risk Gauges */}
             <Card>
               <CardHeader><CardTitle>Risk Utilization</CardTitle></CardHeader>
               <CardContent>
@@ -124,7 +83,6 @@ export default function RiskPage() {
               </CardContent>
             </Card>
 
-            {/* Rules */}
             <Card>
               <CardHeader><CardTitle>Active Risk Rules</CardTitle></CardHeader>
               <CardContent>
@@ -156,15 +114,15 @@ export default function RiskPage() {
             <CardContent>
               <div className="flex flex-col gap-4">
                 {[
-                  { key: "maxDailyLoss", label: "Max Daily Loss ($)", type: "number", def: s?.maxDailyLoss ?? 500, min: 100, max: 5000, step: 100 },
-                  { key: "maxPositionSize", label: "Max Position Size (%)", type: "number", def: (s?.maxPositionSize ?? 0.1) * 100, min: 1, max: 30, step: 1 },
-                  { key: "maxOpenPositions", label: "Max Open Positions", type: "number", def: s?.maxOpenPositions ?? 5, min: 1, max: 20, step: 1 },
-                  { key: "maxDrawdownPct", label: "Max Drawdown (%)", type: "number", def: (s?.maxDrawdownPct ?? 0.15) * 100, min: 5, max: 50, step: 5 },
+                  { key: "maxDailyLoss" as const, label: "Max Daily Loss ($)", def: s?.maxDailyLoss ?? 500, min: 100, max: 5000, step: 100 },
+                  { key: "maxPositionSize" as const, label: "Max Position Size (%)", def: (s?.maxPositionSize ?? 0.1) * 100, min: 1, max: 30, step: 1 },
+                  { key: "maxOpenPositions" as const, label: "Max Open Positions", def: s?.maxOpenPositions ?? 5, min: 1, max: 20, step: 1 },
+                  { key: "maxDrawdownPct" as const, label: "Max Drawdown (%)", def: (s?.maxDrawdownPct ?? 0.15) * 100, min: 5, max: 50, step: 5 },
                 ].map(field => (
                   <div key={field.key}>
                     <label className="text-xs text-muted-foreground mb-1.5 block">{field.label}</label>
                     <input
-                      type={field.type}
+                      type="number"
                       defaultValue={field.def}
                       min={field.min}
                       max={field.max}
@@ -205,7 +163,7 @@ export default function RiskPage() {
                 </div>
 
                 {saved && <div className="flex items-center gap-2 text-bullish text-sm bg-bullish/10 border border-bullish/20 px-3 py-2 rounded-sm"><CheckCircle2 className="w-4 h-4" /> Settings saved</div>}
-                <Btn variant="primary" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate(form)}>
+                <Btn variant="primary" disabled={saveMutation.isPending} onClick={handleSave}>
                   <Save className="w-4 h-4" /> Save Settings
                 </Btn>
               </div>

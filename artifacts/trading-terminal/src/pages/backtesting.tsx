@@ -1,45 +1,12 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { useBacktest } from "@/hooks/use-backtesting";
 import { useAppState } from "@/hooks/use-app-state";
 import { Card, CardHeader, CardTitle, CardContent, PageTransition, Skeleton, Btn } from "@/components/terminal-ui";
-import { FlaskConical, TrendingUp, TrendingDown, Target, ArrowUpDown, Trophy, AlertTriangle } from "lucide-react";
+import { FlaskConical, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PERIODS = ["1M", "3M", "6M", "1Y"] as const;
-
-interface BacktestResult {
-  symbol: string;
-  period: string;
-  totalTrades: number;
-  winningTrades: number;
-  losingTrades: number;
-  winRate: number;
-  totalReturn: number;
-  totalReturnPct: number;
-  maxDrawdown: number;
-  sharpeRatio: number;
-  profitFactor: number;
-  avgWin: number;
-  avgLoss: number;
-  avgHoldingDays: number;
-  bestTrade: number;
-  worstTrade: number;
-  equity: number[];
-  trades: {
-    entryDate: string;
-    exitDate: string;
-    entryPrice: number;
-    exitPrice: number;
-    shares: number;
-    pnl: number;
-    pnlPct: number;
-    holdingDays: number;
-    reason: string;
-  }[];
-  summary: string;
-}
+type Period = (typeof PERIODS)[number];
 
 function MiniEquityCurve({ equity }: { equity: number[] }) {
   if (!equity || equity.length < 2) return null;
@@ -64,14 +31,10 @@ export default function BacktestingPage() {
   const { selectedSymbol } = useAppState();
   const [symbol, setSymbol] = useState(selectedSymbol);
   const [runSymbol, setRunSymbol] = useState<string | null>(null);
-  const [period, setPeriod] = useState<typeof PERIODS[number]>("3M");
+  const [period, setPeriod] = useState<Period>("3M");
   const [runPeriod, setRunPeriod] = useState<string>("3M");
 
-  const { data, isLoading, error } = useQuery<BacktestResult>({
-    queryKey: ["/api/backtest", runSymbol, runPeriod],
-    queryFn: () => customFetch(`${BASE}/api/backtest/${runSymbol}?period=${runPeriod}`).then(r => r.json()),
-    enabled: !!runSymbol,
-  });
+  const { data, isLoading, error } = useBacktest(runSymbol, runPeriod);
 
   const run = () => {
     setRunSymbol(symbol.toUpperCase());
@@ -88,7 +51,6 @@ export default function BacktestingPage() {
       </div>
       <p className="text-sm text-muted-foreground -mt-4 mb-6">Simulate the AI's technical strategy on historical data before trusting it with real trades.</p>
 
-      {/* Controls */}
       <Card className="mb-6">
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
@@ -131,12 +93,10 @@ export default function BacktestingPage() {
 
       {data && !isLoading && (
         <div className="flex flex-col gap-6">
-          {/* Summary */}
           <div className="p-4 rounded-sm border border-border/50 bg-muted/20">
             <p className="text-sm text-muted-foreground">{data.summary}</p>
           </div>
 
-          {/* Key Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
             {[
               { label: "Total Return", value: `${data.totalReturnPct >= 0 ? "+" : ""}${data.totalReturnPct.toFixed(1)}%`, bull: data.totalReturnPct > 0 },
@@ -156,7 +116,6 @@ export default function BacktestingPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Equity Curve */}
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
@@ -191,7 +150,6 @@ export default function BacktestingPage() {
               </Card>
             </div>
 
-            {/* Trade History */}
             <Card>
               <CardHeader>
                 <CardTitle>Last {data.trades.length} Trades</CardTitle>

@@ -232,7 +232,7 @@ export default function DiscoverPage() {
 function MoverSection({ title, icon, items, loading, error, onSelect, showVolume }: {
   title: string; icon: React.ReactNode;
   items: Array<{ symbol: string; name: string; price: number; changePercent: number; volume: number }>;
-  loading: boolean; error: any;
+  loading: boolean; error: unknown;
   onSelect: (s: string) => void;
   showVolume?: boolean;
 }) {

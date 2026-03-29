@@ -1,0 +1,30 @@
+export const CHART_COLORS = {
+  background: "#0a0a0a",
+  text: "#6b7280",
+  grid: "#161616",
+  border: "#212121",
+  crosshair: "#6b7280",
+  upColor: "#22c55e",
+  downColor: "#ef4444",
+  wickUp: "#22c55e",
+  wickDown: "#ef4444",
+  volumeUp: "rgba(34,197,94,0.35)",
+  volumeDown: "rgba(239,68,68,0.35)",
+} as const;
+
+export const OVERLAY_COLORS = {
+  ichimokuTenkan: "#e879f9",
+  ichimokuKijun: "#3b82f6",
+  ichimokuSenkouA: "rgba(34,197,94,0.15)",
+  ichimokuSenkouB: "rgba(239,68,68,0.15)",
+  stochasticK: "#f59e0b",
+  stochasticD: "#a78bfa",
+  psar: "#facc15",
+  sma20: "#38bdf8",
+  sma50: "#fb923c",
+  ema20: "#a3e635",
+  bollingerUpper: "rgba(168,85,247,0.7)",
+  bollingerMiddle: "rgba(168,85,247,0.5)",
+  bollingerLower: "rgba(168,85,247,0.7)",
+  rsi: "#f472b6",
+} as const;

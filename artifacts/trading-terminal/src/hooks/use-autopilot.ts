@@ -17,7 +17,15 @@ export interface AutopilotDecision {
   riskReward: number;
   aiPowered: boolean;
   generatedAt: string;
-  indicators?: Record<string, any>;
+  indicators?: Record<string, number | string | boolean | null>;
+}
+
+export interface ExecutedTrade {
+  id: number;
+  symbol: string;
+  side: string;
+  shares: number;
+  entryPrice: number;
 }
 
 export interface ExecuteResult {
@@ -25,7 +33,7 @@ export interface ExecuteResult {
   action: string;
   symbol: string;
   message: string;
-  trade?: object;
+  trade?: ExecutedTrade;
   closedTrades?: number;
 }
 

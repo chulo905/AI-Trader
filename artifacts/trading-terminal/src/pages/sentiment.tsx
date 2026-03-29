@@ -1,27 +1,10 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
+import { useSentiment } from "@/hooks/use-sentiment";
+import { useGetQuote } from "@workspace/api-client-react";
 import { Card, CardHeader, CardTitle, CardContent, PageTransition, Skeleton } from "@/components/terminal-ui";
 import { Newspaper, RefreshCw, TrendingUp, TrendingDown, Minus, Sparkles, Users, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGetQuote } from "@workspace/api-client-react";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-interface SentimentResult {
-  symbol: string;
-  overallSentiment: "very-bullish" | "bullish" | "neutral" | "bearish" | "very-bearish";
-  score: number;
-  label: string;
-  summary: string;
-  keyFactors: string[];
-  newsHeadlines: { headline: string; sentiment: "positive" | "neutral" | "negative"; impact: "high" | "medium" | "low" }[];
-  socialBuzz: string;
-  analystConsensus: string;
-  aiPowered: boolean;
-  generatedAt: string;
-}
 
 const SENTIMENT_COLORS: Record<string, string> = {
   "very-bullish": "text-bullish",
@@ -56,20 +39,9 @@ function SentimentMeter({ score }: { score: number }) {
 
 export default function SentimentPage() {
   const { selectedSymbol } = useAppState();
-  const { data: quote } = useGetQuote(selectedSymbol, { query: { refetchInterval: 30000 } });
+  useGetQuote(selectedSymbol, { query: { refetchInterval: 30000 } });
 
-  const { data, isLoading, refetch } = useQuery<SentimentResult>({
-    queryKey: ["/api/sentiment", selectedSymbol],
-    queryFn: () => customFetch(`${BASE}/api/sentiment/${selectedSymbol}`).then(r => r.json()),
-    refetchInterval: 30000,
-    placeholderData: {
-      symbol: selectedSymbol, overallSentiment: "neutral", score: 0, label: "Neutral", aiPowered: false,
-      summary: "Fetching sentiment analysis…", generatedAt: new Date().toISOString(),
-      newsHeadlines: [], keyFactors: [], socialBuzz: "—", analystConsensus: "—",
-      technicalSignals: { rsi: 50, trend: "Neutral", momentum: "Flat", volatility: "Normal" },
-    },
-  });
-
+  const { data, isLoading, refetch } = useSentiment(selectedSymbol);
   const sentColor = SENTIMENT_COLORS[data?.overallSentiment ?? "neutral"];
 
   return (

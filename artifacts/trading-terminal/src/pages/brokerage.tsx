@@ -1,56 +1,12 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { useBrokerageStatus, useMarketStatus } from "@/hooks/use-brokerage";
 import { Card, CardHeader, CardTitle, CardContent, PageTransition } from "@/components/terminal-ui";
 import { Cable, CheckCircle2, XCircle, Clock, AlertTriangle, Key } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-interface BrokerageStatus {
-  provider: string;
-  connected: boolean;
-  paperTrading: boolean;
-  alpacaConfigured: boolean;
-  availableProviders: {
-    id: string;
-    name: string;
-    description: string;
-    configured: boolean;
-    requiresKeys: string[];
-  }[];
-}
-
-interface MarketStatus {
-  isOpen: boolean;
-  currentTimeET: string;
-  marketHours: string;
-  preMarket: boolean;
-  afterHours: boolean;
-  isWeekend: boolean;
-}
-
 export default function BrokeragePage() {
-  const { data: status } = useQuery<BrokerageStatus>({
-    queryKey: ["/api/brokerage/status"],
-    queryFn: () => customFetch(`${BASE}/api/brokerage/status`).then(r => r.json()),
-    refetchInterval: 60000,
-    placeholderData: {
-      provider: "paper", connected: true, paperTrading: true, alpacaConfigured: false,
-      availableProviders: [
-        { id: "paper", name: "Built-in Paper Trading", description: "Simulated trading with $100,000 virtual money.", configured: true, requiresKeys: [] },
-        { id: "alpaca", name: "Alpaca (Paper)", description: "Alpaca paper trading account.", configured: false, requiresKeys: ["ALPACA_API_KEY", "ALPACA_API_SECRET"] },
-        { id: "interactive-brokers", name: "Interactive Brokers", description: "Coming soon.", configured: false, requiresKeys: ["IB_CLIENT_ID"] },
-      ],
-    },
-  });
-
-  const { data: market } = useQuery<MarketStatus>({
-    queryKey: ["/api/brokerage/market-open"],
-    queryFn: () => customFetch(`${BASE}/api/brokerage/market-open`).then(r => r.json()),
-    refetchInterval: 60000,
-    placeholderData: { isOpen: false, currentTimeET: "--:--", marketHours: "9:30 AM – 4:00 PM ET, Mon–Fri", preMarket: false, afterHours: false, isWeekend: false },
-  });
+  const { data: status } = useBrokerageStatus();
+  const { data: market } = useMarketStatus();
 
   return (
     <PageTransition>
@@ -89,7 +45,6 @@ export default function BrokeragePage() {
                   </div>
                 </div>
 
-                {/* Market Status */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className={cn("p-4 rounded-sm border", market?.isOpen ? "bg-bullish/5 border-bullish/20" : "bg-muted/30 border-border/40")}>
                     <div className="flex items-center gap-2 mb-2">
@@ -113,7 +68,6 @@ export default function BrokeragePage() {
               </CardContent>
             </Card>
 
-            {/* Available Providers */}
             <Card>
               <CardHeader><CardTitle>Available Brokerages</CardTitle></CardHeader>
               <CardContent>

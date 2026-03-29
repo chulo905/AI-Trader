@@ -1,42 +1,12 @@
 import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { useAutonomousStatus, useAutonomousLog, useToggleAutonomousConfig, useDeleteAutonomousConfig, useAddAutonomousConfig } from "@/hooks/use-autonomous";
+import { getGetAutonomousLogQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent, PageTransition, Skeleton, Btn, ActionBadge } from "@/components/terminal-ui";
 import { Bot, Play, Square, Plus, Trash2, RefreshCw, Activity, Clock, TrendingUp, AlertTriangle } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-interface AutonomousConfig {
-  id: number;
-  symbol: string;
-  enabled: boolean;
-  budgetPerTrade: number;
-  maxShares: number;
-  intervalMinutes: number;
-  lastRunAt: string | null;
-  lastAction: string | null;
-  lastReason: string | null;
-  totalAutoTrades: number;
-}
-
-interface LogEntry {
-  ts: string;
-  symbol: string;
-  action: string;
-  result: string;
-  reason: string;
-}
-
-interface StatusData {
-  loopRunning: boolean;
-  watchedSymbols: number;
-  enabledSymbols: number;
-  configs: AutonomousConfig[];
-  recentLog: LogEntry[];
-}
 
 const INTERVAL_OPTIONS = [5, 10, 15, 30, 60];
 
@@ -48,44 +18,11 @@ export default function AutonomousPage() {
   const [interval, setInterval_] = useState(15);
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data: status, isLoading } = useQuery<StatusData>({
-    queryKey: ["/api/autonomous/status"],
-    queryFn: () => customFetch(`${BASE}/api/autonomous/status`).then(r => r.json()),
-    refetchInterval: 15000,
-  });
-
-  const { data: log } = useQuery<LogEntry[]>({
-    queryKey: ["/api/autonomous/log"],
-    queryFn: () => customFetch(`${BASE}/api/autonomous/log`).then(r => r.json()),
-    refetchInterval: 10000,
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: (symbol: string) =>
-      customFetch(`${BASE}/api/autonomous/configs/${symbol}/toggle`, { method: "PATCH" }).then(r => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/autonomous/status"] }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (symbol: string) =>
-      customFetch(`${BASE}/api/autonomous/configs/${symbol}`, { method: "DELETE" }).then(r => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/autonomous/status"] }),
-  });
-
-  const addMutation = useMutation({
-    mutationFn: (data: object) =>
-      customFetch(`${BASE}/api/autonomous/configs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then(r => r.json()),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/autonomous/status"] });
-      setShowAdd(false);
-      setNewSymbol("");
-      setBudget("1000");
-    },
-  });
+  const { data: status, isLoading } = useAutonomousStatus();
+  const { data: log } = useAutonomousLog();
+  const toggleMutation = useToggleAutonomousConfig();
+  const deleteMutation = useDeleteAutonomousConfig();
+  const addMutation = useAddAutonomousConfig();
 
   const actionColor = (action: string | null) => {
     if (!action) return "text-muted-foreground";
@@ -93,6 +30,19 @@ export default function AutonomousPage() {
     if (action.includes("SELL")) return "text-bearish";
     if (action.includes("BLOCKED") || action.includes("ERROR")) return "text-bearish";
     return "text-muted-foreground";
+  };
+
+  const handleAdd = () => {
+    addMutation.mutate(
+      { data: { symbol: newSymbol, budgetPerTrade: parseFloat(budget), intervalMinutes: interval, enabled: true } },
+      {
+        onSuccess: () => {
+          setShowAdd(false);
+          setNewSymbol("");
+          setBudget("1000");
+        },
+      }
+    );
   };
 
   return (
@@ -106,7 +56,6 @@ export default function AutonomousPage() {
       </div>
       <p className="text-sm text-muted-foreground -mt-4 mb-6">The AI monitors your watched symbols on a schedule and executes BUY/SELL trades automatically — no clicks needed.</p>
 
-      {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           { label: "Watched Symbols", value: status?.watchedSymbols ?? 0, icon: Activity },
@@ -125,12 +74,11 @@ export default function AutonomousPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Watched Symbols */}
         <div className="lg:col-span-2 flex flex-col gap-4">
           <Card>
             <CardHeader>
               <CardTitle>Watched Symbols</CardTitle>
-              <Btn variant="secondary" onClick={() => setShowAdd(!showAdd)}>
+              <Btn variant="ghost" size="sm" onClick={() => setShowAdd(!showAdd)}>
                 <Plus className="w-3.5 h-3.5" /> Add Symbol
               </Btn>
             </CardHeader>
@@ -154,7 +102,7 @@ export default function AutonomousPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Btn variant="primary" disabled={addMutation.isPending} onClick={() => addMutation.mutate({ symbol: newSymbol, budgetPerTrade: parseFloat(budget), intervalMinutes: interval, enabled: true })}>
+                    <Btn variant="primary" disabled={addMutation.isPending} onClick={handleAdd}>
                       <Play className="w-3.5 h-3.5" /> Start Auto-Trading
                     </Btn>
                     <Btn variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Btn>
@@ -180,13 +128,13 @@ export default function AutonomousPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right hidden md:block">
-                          <p className={cn("text-xs font-semibold", actionColor(cfg.lastAction))}>{cfg.lastAction ?? "Waiting..."}</p>
+                          <p className={cn("text-xs font-semibold", actionColor(cfg.lastAction ?? null))}>{cfg.lastAction ?? "Waiting..."}</p>
                           <p className="text-[10px] text-muted-foreground">{cfg.lastRunAt ? new Date(cfg.lastRunAt).toLocaleTimeString() : "Never run"}</p>
                         </div>
-                        <button onClick={() => toggleMutation.mutate(cfg.symbol)} className={cn("text-xs px-3 py-1.5 rounded-sm font-semibold border transition-all", cfg.enabled ? "bg-bullish/10 text-bullish border-bullish/20 hover:bg-bullish/20" : "bg-muted text-muted-foreground border-border hover:bg-muted/80")}>
+                        <button onClick={() => toggleMutation.mutate({ symbol: cfg.symbol })} className={cn("text-xs px-3 py-1.5 rounded-sm font-semibold border transition-all", cfg.enabled ? "bg-bullish/10 text-bullish border-bullish/20 hover:bg-bullish/20" : "bg-muted text-muted-foreground border-border hover:bg-muted/80")}>
                           {cfg.enabled ? <><Square className="w-3 h-3 inline mr-1" />Stop</> : <><Play className="w-3 h-3 inline mr-1" />Start</>}
                         </button>
-                        <button onClick={() => deleteMutation.mutate(cfg.symbol)} className="text-muted-foreground hover:text-bearish transition-colors">
+                        <button onClick={() => deleteMutation.mutate({ symbol: cfg.symbol })} className="text-muted-foreground hover:text-bearish transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -197,7 +145,6 @@ export default function AutonomousPage() {
             </CardContent>
           </Card>
 
-          {/* How It Works */}
           <Card>
             <CardHeader><CardTitle>How the Loop Works</CardTitle></CardHeader>
             <CardContent>
@@ -224,11 +171,10 @@ export default function AutonomousPage() {
           </Card>
         </div>
 
-        {/* Execution Log */}
         <Card>
           <CardHeader>
             <CardTitle>Execution Log</CardTitle>
-            <button onClick={() => qc.invalidateQueries({ queryKey: ["/api/autonomous/log"] })} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => qc.invalidateQueries({ queryKey: getGetAutonomousLogQueryKey() })} className="text-muted-foreground hover:text-foreground transition-colors">
               <RefreshCw className="w-4 h-4" />
             </button>
           </CardHeader>

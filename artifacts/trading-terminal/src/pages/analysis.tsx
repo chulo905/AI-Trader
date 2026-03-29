@@ -1,12 +1,13 @@
 import { useGetAnalysis } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
-import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, SignalBadge, DataPoint, TerminalTable } from "@/components/terminal-ui";
+import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, SignalBadge, TerminalTable } from "@/components/terminal-ui";
 import { formatPrice } from "@/lib/utils";
 import { Brain, Target, Activity, Zap, RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-export default function AnalysisPage() {
+function AnalysisPageInner() {
   const { selectedSymbol } = useAppState();
   const queryClient = useQueryClient();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -15,7 +16,7 @@ export default function AnalysisPage() {
     query: { staleTime: 5 * 60 * 1000, retry: 1 },
   });
 
-  const aiPowered = (analysis as any)?.aiPowered === true;
+  const aiPowered = analysis != null && "aiPowered" in analysis && (analysis as Record<string, unknown>).aiPowered === true;
 
   useEffect(() => {
     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -155,4 +156,12 @@ function TrendingIcon({ val }: { val: string }) {
   if (v.includes('bull') || v.includes('up')) return <Activity className="w-4 h-4 text-bullish" />;
   if (v.includes('bear') || v.includes('down')) return <Activity className="w-4 h-4 text-bearish" />;
   return <Activity className="w-4 h-4 text-neutral" />;
+}
+
+export default function AnalysisPage() {
+  return (
+    <ErrorBoundary label="AnalysisPage">
+      <AnalysisPageInner />
+    </ErrorBoundary>
+  );
 }

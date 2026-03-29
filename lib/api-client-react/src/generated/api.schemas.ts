@@ -464,6 +464,202 @@ export interface UpdateSettingsInput {
   defaultWatchlistId?: number | null;
 }
 
+export type SentimentNewsHeadlineSentiment =
+  (typeof SentimentNewsHeadlineSentiment)[keyof typeof SentimentNewsHeadlineSentiment];
+
+export const SentimentNewsHeadlineSentiment = {
+  positive: "positive",
+  neutral: "neutral",
+  negative: "negative",
+} as const;
+
+export type SentimentNewsHeadlineImpact =
+  (typeof SentimentNewsHeadlineImpact)[keyof typeof SentimentNewsHeadlineImpact];
+
+export const SentimentNewsHeadlineImpact = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface SentimentNewsHeadline {
+  headline: string;
+  sentiment: SentimentNewsHeadlineSentiment;
+  impact: SentimentNewsHeadlineImpact;
+}
+
+export type SentimentResultOverallSentiment =
+  (typeof SentimentResultOverallSentiment)[keyof typeof SentimentResultOverallSentiment];
+
+export const SentimentResultOverallSentiment = {
+  "very-bullish": "very-bullish",
+  bullish: "bullish",
+  neutral: "neutral",
+  bearish: "bearish",
+  "very-bearish": "very-bearish",
+} as const;
+
+export interface SentimentResult {
+  symbol: string;
+  overallSentiment: SentimentResultOverallSentiment;
+  score: number;
+  label: string;
+  summary: string;
+  keyFactors: string[];
+  newsHeadlines: SentimentNewsHeadline[];
+  socialBuzz: string;
+  analystConsensus: string;
+  aiPowered: boolean;
+  isMock?: boolean;
+  generatedAt: string;
+}
+
+export interface RiskSettings {
+  maxDailyLoss: number;
+  maxPositionSize: number;
+  maxOpenPositions: number;
+  stopLossEnforcement: boolean;
+  maxDrawdownPct: number;
+  tradingEnabled: boolean;
+}
+
+export type RiskHealthOverallStatus =
+  (typeof RiskHealthOverallStatus)[keyof typeof RiskHealthOverallStatus];
+
+export const RiskHealthOverallStatus = {
+  healthy: "healthy",
+  warning: "warning",
+  danger: "danger",
+} as const;
+
+export interface RiskHealth {
+  dailyLossUsed: number;
+  drawdownUsed: number;
+  positionsUsed: number;
+  overallStatus: RiskHealthOverallStatus;
+}
+
+export interface RiskMetrics {
+  equity: number;
+  openPositions: number;
+  todayRealizedLoss: number;
+  totalExposure: number;
+  maxDrawdown: number;
+  isMock?: boolean;
+  settings: RiskSettings;
+  health: RiskHealth;
+}
+
+export interface RiskSettingsInput {
+  maxDailyLoss?: number;
+  maxPositionSize?: number;
+  maxOpenPositions?: number;
+  stopLossEnforcement?: boolean;
+  maxDrawdownPct?: number;
+  tradingEnabled?: boolean;
+}
+
+export interface AutonomousConfig {
+  id: number;
+  symbol: string;
+  enabled: boolean;
+  budgetPerTrade: number;
+  maxShares: number;
+  intervalMinutes: number;
+  /** @nullable */
+  lastRunAt?: string | null;
+  /** @nullable */
+  lastAction?: string | null;
+  /** @nullable */
+  lastReason?: string | null;
+  totalAutoTrades: number;
+}
+
+export interface AutonomousLogEntry {
+  ts: string;
+  symbol: string;
+  action: string;
+  result: string;
+  reason: string;
+}
+
+export interface AutonomousStatus {
+  loopRunning: boolean;
+  watchedSymbols: number;
+  enabledSymbols: number;
+  isMock?: boolean;
+  configs: AutonomousConfig[];
+  recentLog: AutonomousLogEntry[];
+}
+
+export interface AddAutonomousConfigInput {
+  symbol: string;
+  budgetPerTrade: number;
+  intervalMinutes: number;
+  enabled: boolean;
+}
+
+export interface BacktestTrade {
+  entryDate: string;
+  exitDate: string;
+  entryPrice: number;
+  exitPrice: number;
+  shares: number;
+  pnl: number;
+  pnlPct: number;
+  holdingDays: number;
+  reason: string;
+}
+
+export interface BacktestResult {
+  symbol: string;
+  period: string;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  totalReturn: number;
+  totalReturnPct: number;
+  maxDrawdown: number;
+  sharpeRatio: number;
+  profitFactor: number;
+  avgWin: number;
+  avgLoss: number;
+  avgHoldingDays: number;
+  bestTrade: number;
+  worstTrade: number;
+  equity: number[];
+  isMock?: boolean;
+  trades: BacktestTrade[];
+  summary: string;
+}
+
+export interface BrokerageProvider {
+  id: string;
+  name: string;
+  description: string;
+  configured: boolean;
+  requiresKeys: string[];
+}
+
+export interface BrokerageStatus {
+  provider: string;
+  connected: boolean;
+  paperTrading: boolean;
+  alpacaConfigured: boolean;
+  isMock?: boolean;
+  availableProviders: BrokerageProvider[];
+}
+
+export interface MarketStatus {
+  isOpen: boolean;
+  currentTimeET: string;
+  marketHours: string;
+  preMarket: boolean;
+  afterHours: boolean;
+  isWeekend: boolean;
+}
+
 export type GetMarketQuotesParams = {
   /**
    * Comma-separated list of symbols
@@ -538,4 +734,8 @@ export const GetAnalysisTimeframe = {
 
 export type GetTradeIdeasParams = {
   limit?: number;
+};
+
+export type GetBacktestParams = {
+  period?: string;
 };

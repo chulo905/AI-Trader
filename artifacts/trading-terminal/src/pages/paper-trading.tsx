@@ -1,68 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { useGetPositions, useCreateTrade, useCloseTrade, useGetQuote } from "@workspace/api-client-react";
+import React from "react";
 import { useAppState } from "@/hooks/use-app-state";
+import { usePaperTradeForm } from "@/hooks/use-paper-trade-form";
 import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, TerminalTable, TerminalButton, TerminalInput, TerminalLabel, PriceChange } from "@/components/terminal-ui";
 import { formatCurrency, formatPrice } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRightLeft } from "lucide-react";
 
 export default function PaperTradingPage() {
   const { selectedSymbol, setSelectedSymbol } = useAppState();
-  const queryClient = useQueryClient();
-  
-  const { data: positions, isLoading, error } = useGetPositions();
-  const { data: quote } = useGetQuote(selectedSymbol);
 
-  const [side, setSide] = useState<'long'|'short'>('long');
-  const [shares, setShares] = useState("10");
-  const [entryPrice, setEntryPrice] = useState("");
-  const [stopLoss, setStopLoss] = useState("");
-  const [takeProfit, setTakeProfit] = useState("");
-
-  useEffect(() => {
-    if (quote) {
-      setEntryPrice(quote.price.toString());
-    }
-  }, [quote?.symbol]); // Only update when symbol changes
-
-  const createMutation = useCreateTrade({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/portfolio/positions'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/portfolio'] });
-      }
-    }
-  });
-
-  const closeMutation = useCloseTrade({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/portfolio/positions'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/portfolio'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
-      }
-    }
-  });
-
-  const handleTrade = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSymbol || !shares || !entryPrice) return;
-    
-    createMutation.mutate({
-      data: {
-        symbol: selectedSymbol,
-        side,
-        shares: Number(shares),
-        entryPrice: Number(entryPrice),
-        stopLoss: stopLoss ? Number(stopLoss) : null,
-        takeProfit: takeProfit ? Number(takeProfit) : null
-      }
-    });
-  };
-
-  const handleClose = (id: number, currentPrice: number) => {
-    closeMutation.mutate({ id, data: { exitPrice: currentPrice } });
-  };
+  const {
+    positions,
+    isLoading,
+    error,
+    quote,
+    side,
+    setSide,
+    shares,
+    setShares,
+    entryPrice,
+    setEntryPrice,
+    stopLoss,
+    setStopLoss,
+    takeProfit,
+    setTakeProfit,
+    submitTrade,
+    closePosition,
+    isSubmitting,
+    isClosing,
+  } = usePaperTradeForm(selectedSymbol);
 
   return (
     <PageTransition>
@@ -72,16 +37,15 @@ export default function PaperTradingPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Order Form */}
         <div className="xl:col-span-1">
           <TerminalCard title="Order Ticket">
-            <form onSubmit={handleTrade} className="flex flex-col gap-5">
+            <form onSubmit={submitTrade} className="flex flex-col gap-5">
               
               <div className="flex gap-2 p-1 bg-muted rounded-sm border border-border/50">
-                <button type="button" onClick={() => setSide('long')} className={`flex-1 py-2 text-sm font-bold uppercase rounded-sm transition-all ${side === 'long' ? 'bg-bullish text-white shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button type="button" onClick={() => setSide("long")} className={`flex-1 py-2 text-sm font-bold uppercase rounded-sm transition-all ${side === "long" ? "bg-bullish text-white shadow-none" : "text-muted-foreground hover:text-foreground"}`}>
                   Buy / Long
                 </button>
-                <button type="button" onClick={() => setSide('short')} className={`flex-1 py-2 text-sm font-bold uppercase rounded-sm transition-all ${side === 'short' ? 'bg-bearish text-white shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button type="button" onClick={() => setSide("short")} className={`flex-1 py-2 text-sm font-bold uppercase rounded-sm transition-all ${side === "short" ? "bg-bearish text-white shadow-none" : "text-muted-foreground hover:text-foreground"}`}>
                   Sell / Short
                 </button>
               </div>
@@ -89,10 +53,10 @@ export default function PaperTradingPage() {
               <div>
                 <TerminalLabel>Symbol</TerminalLabel>
                 <div className="relative">
-                  <TerminalInput 
-                    value={selectedSymbol} 
-                    onChange={(e) => setSelectedSymbol(e.target.value)} 
-                    placeholder="AAPL" 
+                  <TerminalInput
+                    value={selectedSymbol}
+                    onChange={(e) => setSelectedSymbol(e.target.value)}
+                    placeholder="AAPL"
                     className="font-bold text-lg uppercase"
                     required
                   />
@@ -133,21 +97,20 @@ export default function PaperTradingPage() {
                 </div>
               </div>
 
-              <TerminalButton 
-                type="submit" 
-                variant={side === 'long' ? 'bullish' : 'bearish'} 
-                size="lg" 
+              <TerminalButton
+                type="submit"
+                variant={side === "long" ? "bullish" : "bearish"}
+                size="lg"
                 className="w-full mt-2"
-                disabled={createMutation.isPending}
+                disabled={isSubmitting}
               >
-                {createMutation.isPending ? "Submitting..." : `Submit ${side.toUpperCase()} Order`}
+                {isSubmitting ? "Submitting..." : `Submit ${side.toUpperCase()} Order`}
               </TerminalButton>
-              
+
             </form>
           </TerminalCard>
         </div>
 
-        {/* Positions Table */}
         <div className="xl:col-span-2">
           <TerminalCard title="Open Positions">
             {error ? <ErrorPanel error={error} /> : isLoading ? <TerminalSkeleton className="h-[400px]" /> : (
@@ -156,7 +119,7 @@ export default function PaperTradingPage() {
                   <tr key={pos.id} className="hover:bg-muted/30">
                     <td className="px-4 py-3 font-bold font-mono text-base">{pos.symbol}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-bold uppercase ${pos.side === 'long' ? 'text-bullish bg-bullish/10 px-2 py-1 rounded' : 'text-bearish bg-bearish/10 px-2 py-1 rounded'}`}>{pos.side}</span>
+                      <span className={`text-xs font-bold uppercase ${pos.side === "long" ? "text-bullish bg-bullish/10 px-2 py-1 rounded" : "text-bearish bg-bearish/10 px-2 py-1 rounded"}`}>{pos.side}</span>
                     </td>
                     <td className="px-4 py-3 font-mono">{pos.shares}</td>
                     <td className="px-4 py-3 font-mono">{formatPrice(pos.entryPrice)}</td>
@@ -170,11 +133,11 @@ export default function PaperTradingPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <TerminalButton 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleClose(pos.id, pos.currentPrice)}
-                        disabled={closeMutation.isPending}
+                      <TerminalButton
+                        size="sm"
+                        variant="outline"
+                        onClick={() => closePosition(pos.id, pos.currentPrice)}
+                        disabled={isClosing}
                       >
                         Close
                       </TerminalButton>

@@ -499,6 +499,187 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserSettings"
 
+  /sentiment/{symbol}:
+    get:
+      operationId: getSentiment
+      tags: [analysis]
+      summary: Get sentiment analysis for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sentiment analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentimentResult"
+
+  /risk/metrics:
+    get:
+      operationId: getRiskMetrics
+      tags: [settings]
+      summary: Get risk metrics and settings
+      responses:
+        "200":
+          description: Risk metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskMetrics"
+
+  /risk/settings:
+    put:
+      operationId: updateRiskSettings
+      tags: [settings]
+      summary: Update risk settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiskSettingsInput"
+      responses:
+        "200":
+          description: Updated risk metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskMetrics"
+
+  /autonomous/status:
+    get:
+      operationId: getAutonomousStatus
+      tags: [analysis]
+      summary: Get autonomous trading loop status
+      responses:
+        "200":
+          description: Autonomous status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutonomousStatus"
+
+  /autonomous/log:
+    get:
+      operationId: getAutonomousLog
+      tags: [analysis]
+      summary: Get autonomous trading log
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AutonomousLogEntry"
+
+  /autonomous/configs:
+    post:
+      operationId: addAutonomousConfig
+      tags: [analysis]
+      summary: Add autonomous trading config for a symbol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddAutonomousConfigInput"
+      responses:
+        "200":
+          description: Created config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutonomousConfig"
+
+  /autonomous/configs/{symbol}/toggle:
+    patch:
+      operationId: toggleAutonomousConfig
+      tags: [analysis]
+      summary: Toggle autonomous config for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutonomousConfig"
+
+  /autonomous/configs/{symbol}:
+    delete:
+      operationId: deleteAutonomousConfig
+      tags: [analysis]
+      summary: Delete autonomous config for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /backtest/{symbol}:
+    get:
+      operationId: getBacktest
+      tags: [analysis]
+      summary: Run backtest for a symbol and period
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Backtest result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BacktestResult"
+
+  /brokerage/status:
+    get:
+      operationId: getBrokerageStatus
+      tags: [settings]
+      summary: Get brokerage connection status
+      responses:
+        "200":
+          description: Brokerage status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageStatus"
+
+  /brokerage/market-open:
+    get:
+      operationId: getMarketStatus
+      tags: [market]
+      summary: Get market open/close status
+      responses:
+        "200":
+          description: Market status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketStatus"
+
 components:
   schemas:
     HealthStatus:
@@ -1114,3 +1295,396 @@ components:
           type: ["boolean", "null"]
         defaultWatchlistId:
           type: ["integer", "null"]
+
+    SentimentNewsHeadline:
+      type: object
+      properties:
+        headline:
+          type: string
+        sentiment:
+          type: string
+          enum: [positive, neutral, negative]
+        impact:
+          type: string
+          enum: [high, medium, low]
+      required: [headline, sentiment, impact]
+
+    SentimentResult:
+      type: object
+      properties:
+        symbol:
+          type: string
+        overallSentiment:
+          type: string
+          enum: [very-bullish, bullish, neutral, bearish, very-bearish]
+        score:
+          type: number
+        label:
+          type: string
+        summary:
+          type: string
+        keyFactors:
+          type: array
+          items:
+            type: string
+        newsHeadlines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SentimentNewsHeadline"
+        socialBuzz:
+          type: string
+        analystConsensus:
+          type: string
+        aiPowered:
+          type: boolean
+        isMock:
+          type: boolean
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - symbol
+        - overallSentiment
+        - score
+        - label
+        - summary
+        - keyFactors
+        - newsHeadlines
+        - socialBuzz
+        - analystConsensus
+        - aiPowered
+        - generatedAt
+
+    RiskSettings:
+      type: object
+      properties:
+        maxDailyLoss:
+          type: number
+        maxPositionSize:
+          type: number
+        maxOpenPositions:
+          type: integer
+        stopLossEnforcement:
+          type: boolean
+        maxDrawdownPct:
+          type: number
+        tradingEnabled:
+          type: boolean
+      required:
+        - maxDailyLoss
+        - maxPositionSize
+        - maxOpenPositions
+        - stopLossEnforcement
+        - maxDrawdownPct
+        - tradingEnabled
+
+    RiskHealth:
+      type: object
+      properties:
+        dailyLossUsed:
+          type: number
+        drawdownUsed:
+          type: number
+        positionsUsed:
+          type: number
+        overallStatus:
+          type: string
+          enum: [healthy, warning, danger]
+      required: [dailyLossUsed, drawdownUsed, positionsUsed, overallStatus]
+
+    RiskMetrics:
+      type: object
+      properties:
+        equity:
+          type: number
+        openPositions:
+          type: integer
+        todayRealizedLoss:
+          type: number
+        totalExposure:
+          type: number
+        maxDrawdown:
+          type: number
+        isMock:
+          type: boolean
+        settings:
+          $ref: "#/components/schemas/RiskSettings"
+        health:
+          $ref: "#/components/schemas/RiskHealth"
+      required:
+        - equity
+        - openPositions
+        - todayRealizedLoss
+        - totalExposure
+        - maxDrawdown
+        - settings
+        - health
+
+    RiskSettingsInput:
+      type: object
+      properties:
+        maxDailyLoss:
+          type: number
+        maxPositionSize:
+          type: number
+        maxOpenPositions:
+          type: integer
+        stopLossEnforcement:
+          type: boolean
+        maxDrawdownPct:
+          type: number
+        tradingEnabled:
+          type: boolean
+
+    AutonomousConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        enabled:
+          type: boolean
+        budgetPerTrade:
+          type: number
+        maxShares:
+          type: integer
+        intervalMinutes:
+          type: integer
+        lastRunAt:
+          type: ["string", "null"]
+          format: date-time
+        lastAction:
+          type: ["string", "null"]
+        lastReason:
+          type: ["string", "null"]
+        totalAutoTrades:
+          type: integer
+      required:
+        - id
+        - symbol
+        - enabled
+        - budgetPerTrade
+        - maxShares
+        - intervalMinutes
+        - totalAutoTrades
+
+    AutonomousLogEntry:
+      type: object
+      properties:
+        ts:
+          type: string
+        symbol:
+          type: string
+        action:
+          type: string
+        result:
+          type: string
+        reason:
+          type: string
+      required: [ts, symbol, action, result, reason]
+
+    AutonomousStatus:
+      type: object
+      properties:
+        loopRunning:
+          type: boolean
+        watchedSymbols:
+          type: integer
+        enabledSymbols:
+          type: integer
+        isMock:
+          type: boolean
+        configs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AutonomousConfig"
+        recentLog:
+          type: array
+          items:
+            $ref: "#/components/schemas/AutonomousLogEntry"
+      required:
+        - loopRunning
+        - watchedSymbols
+        - enabledSymbols
+        - configs
+        - recentLog
+
+    AddAutonomousConfigInput:
+      type: object
+      properties:
+        symbol:
+          type: string
+        budgetPerTrade:
+          type: number
+        intervalMinutes:
+          type: integer
+        enabled:
+          type: boolean
+      required: [symbol, budgetPerTrade, intervalMinutes, enabled]
+
+    BacktestTrade:
+      type: object
+      properties:
+        entryDate:
+          type: string
+          format: date-time
+        exitDate:
+          type: string
+          format: date-time
+        entryPrice:
+          type: number
+        exitPrice:
+          type: number
+        shares:
+          type: number
+        pnl:
+          type: number
+        pnlPct:
+          type: number
+        holdingDays:
+          type: number
+        reason:
+          type: string
+      required:
+        - entryDate
+        - exitDate
+        - entryPrice
+        - exitPrice
+        - shares
+        - pnl
+        - pnlPct
+        - holdingDays
+        - reason
+
+    BacktestResult:
+      type: object
+      properties:
+        symbol:
+          type: string
+        period:
+          type: string
+        totalTrades:
+          type: integer
+        winningTrades:
+          type: integer
+        losingTrades:
+          type: integer
+        winRate:
+          type: number
+        totalReturn:
+          type: number
+        totalReturnPct:
+          type: number
+        maxDrawdown:
+          type: number
+        sharpeRatio:
+          type: number
+        profitFactor:
+          type: number
+        avgWin:
+          type: number
+        avgLoss:
+          type: number
+        avgHoldingDays:
+          type: number
+        bestTrade:
+          type: number
+        worstTrade:
+          type: number
+        equity:
+          type: array
+          items:
+            type: number
+        isMock:
+          type: boolean
+        trades:
+          type: array
+          items:
+            $ref: "#/components/schemas/BacktestTrade"
+        summary:
+          type: string
+      required:
+        - symbol
+        - period
+        - totalTrades
+        - winningTrades
+        - losingTrades
+        - winRate
+        - totalReturn
+        - totalReturnPct
+        - maxDrawdown
+        - sharpeRatio
+        - profitFactor
+        - avgWin
+        - avgLoss
+        - avgHoldingDays
+        - bestTrade
+        - worstTrade
+        - equity
+        - trades
+        - summary
+
+    BrokerageProvider:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        configured:
+          type: boolean
+        requiresKeys:
+          type: array
+          items:
+            type: string
+      required: [id, name, description, configured, requiresKeys]
+
+    BrokerageStatus:
+      type: object
+      properties:
+        provider:
+          type: string
+        connected:
+          type: boolean
+        paperTrading:
+          type: boolean
+        alpacaConfigured:
+          type: boolean
+        isMock:
+          type: boolean
+        availableProviders:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerageProvider"
+      required:
+        - provider
+        - connected
+        - paperTrading
+        - alpacaConfigured
+        - availableProviders
+
+    MarketStatus:
+      type: object
+      properties:
+        isOpen:
+          type: boolean
+        currentTimeET:
+          type: string
+        marketHours:
+          type: string
+        preMarket:
+          type: boolean
+        afterHours:
+          type: boolean
+        isWeekend:
+          type: boolean
+      required:
+        - isOpen
+        - currentTimeET
+        - marketHours
+        - preMarket
+        - afterHours
+        - isWeekend

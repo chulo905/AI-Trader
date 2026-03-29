@@ -37,7 +37,7 @@ export default function AlertsPage() {
     e.preventDefault();
     if (!symbol || !price) return;
     createMutation.mutate({
-      data: { symbol: symbol.toUpperCase(), type, price: parseFloat(price), message: `${symbol.toUpperCase()} ${type === "price_above" ? "rose above" : "fell below"} $${price}` }
+      data: { symbol: symbol.toUpperCase(), type, value: parseFloat(price), message: `${symbol.toUpperCase()} ${type === "price_above" ? "rose above" : "fell below"} $${price}` }
     });
   };
 
@@ -113,16 +113,16 @@ export default function AlertsPage() {
                   {alerts.map(alert => (
                     <div key={alert.id} className="flex items-center justify-between p-4 rounded-sm border border-border/50 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className={cn("w-2 h-2 rounded-full", alert.triggered ? "bg-muted-foreground" : "bg-bullish animate-pulse")} />
+                        <div className={cn("w-2 h-2 rounded-full", alert.isTriggered ? "bg-muted-foreground" : "bg-bullish animate-pulse")} />
                         <div>
                           <p className="font-mono font-bold text-sm">{alert.symbol}</p>
                           <p className="text-xs text-muted-foreground">
-                            {alert.type === "price_above" ? "Notify when above" : "Notify when below"} <span className="font-mono text-foreground">${alert.price}</span>
+                            {alert.type === "price_above" ? "Notify when above" : "Notify when below"} <span className="font-mono text-foreground">{alert.value != null ? `$${alert.value}` : ""}</span>
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {alert.triggered && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-sm">Triggered</span>}
+                        {alert.isTriggered && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-sm">Triggered</span>}
                         <button
                           onClick={() => deleteMutation.mutate({ id: alert.id })}
                           className="text-muted-foreground hover:text-bearish transition-colors"
