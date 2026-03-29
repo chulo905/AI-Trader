@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import { useAppState } from "@/hooks/use-app-state";
 import { useAiPilotExecution } from "@/hooks/use-ai-pilot-execution";
 import { useGetPositions, useCloseTrade } from "@workspace/api-client-react";
@@ -18,7 +19,8 @@ import { cn } from "@/lib/utils";
 import type { ExtendedIndicators } from "@/hooks/use-autopilot";
 
 export default function AIPilotPage() {
-  const { selectedSymbol } = useAppState();
+  const { selectedSymbol, setSelectedSymbol } = useAppState();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
   const {
@@ -227,21 +229,43 @@ export default function AIPilotPage() {
                   <p className="text-xs text-muted-foreground/60 mt-1">No trade recommended right now.</p>
                 </div>
               ) : (
-                <Btn
-                  variant={isBuy ? "success" : "danger"}
-                  size="xl"
-                  className="w-full"
-                  onClick={execute}
-                  disabled={phase === "executing" || phase === "done"}
-                >
-                  {phase === "executing" ? (
-                    <><RefreshCw className="w-4 h-4 animate-spin" /> Executing…</>
-                  ) : phase === "done" ? (
-                    <><CheckCircle2 className="w-4 h-4" /> Trade Executed</>
-                  ) : (
-                    <><Zap className="w-4 h-4" /> Let AI {isBuy ? "Buy" : "Sell"} {selectedSymbol}</>
-                  )}
-                </Btn>
+                <>
+                  <Btn
+                    variant={isBuy ? "success" : "danger"}
+                    size="xl"
+                    className="w-full"
+                    onClick={execute}
+                    disabled={phase === "executing" || phase === "done"}
+                  >
+                    {phase === "executing" ? (
+                      <><RefreshCw className="w-4 h-4 animate-spin" /> Executing…</>
+                    ) : phase === "done" ? (
+                      <><CheckCircle2 className="w-4 h-4" /> Trade Executed</>
+                    ) : (
+                      <><Zap className="w-4 h-4" /> Let AI {isBuy ? "Buy" : "Sell"} {selectedSymbol}</>
+                    )}
+                  </Btn>
+                  <Btn
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedSymbol(selectedSymbol);
+                      const params = new URLSearchParams({
+                        symbol: selectedSymbol,
+                        side: isBuy ? "long" : "short",
+                        entry: String(decision.price),
+                        stop: String(decision.stopLoss),
+                        target: String(decision.takeProfit),
+                        shares: String(decision.suggestedShares),
+                      });
+                      setLocation(`/trade?${params.toString()}`);
+                    }}
+                  >
+                    <Zap className="w-4 h-4" />
+                    Pre-fill Order Ticket
+                  </Btn>
+                </>
               )}
 
               <p className="text-[10px] text-center text-muted-foreground/50 leading-relaxed px-2">
@@ -257,7 +281,7 @@ export default function AIPilotPage() {
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y divide-border">
-                      {symbolPositions.map(pos => (
+                      {symbolPositions.map((pos: any) => (
                         <div key={pos.id} className="p-4 flex flex-col gap-2">
                           <div className="flex justify-between items-center">
                             <span className="text-xs font-mono font-semibold">{pos.shares} sh @ {formatPrice(pos.entryPrice)}</span>

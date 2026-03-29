@@ -20,6 +20,7 @@ import BacktestingPage from "@/pages/backtesting";
 import SentimentPage from "@/pages/sentiment";
 import BrokeragePage from "@/pages/brokerage";
 import AnalysisPage from "@/pages/analysis";
+import PaperTradingPage from "@/pages/paper-trading";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,11 +49,10 @@ function Router() {
         <Route path="/sentiment" component={SentimentPage} />
         <Route path="/brokerage" component={BrokeragePage} />
         <Route path="/analysis" component={AnalysisPage} />
+        <Route path="/trade" component={PaperTradingPage} />
         {/* Legacy redirects */}
         <Route path="/watchlist"><Redirect to="/discover" /></Route>
         <Route path="/ideas"><Redirect to="/discover" /></Route>
-        <Route path="/trade"><Redirect to="/autopilot" /></Route>
-        <Route path="/paper-trading"><Redirect to="/brokerage" /></Route>
         <Route component={NotFound} />
       </Switch>
     </Layout>

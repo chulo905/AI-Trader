@@ -24,6 +24,18 @@ router.get("/stats", async (_req: Request, res: Response, next: NextFunction) =>
     const bestTrade = pnlValues.length > 0 ? Math.max(...pnlValues) : null;
     const worstTrade = pnlValues.length > 0 ? Math.min(...pnlValues) : null;
 
+    const tradesWithHoldTime = closed.filter(t => t.openedAt && t.closedAt);
+    const avgHoldTimeHours = tradesWithHoldTime.length > 0
+      ? tradesWithHoldTime.reduce((sum, t) => {
+          const diffMs = new Date(t.closedAt!).getTime() - new Date(t.openedAt).getTime();
+          return sum + diffMs / (1000 * 60 * 60);
+        }, 0) / tradesWithHoldTime.length
+      : null;
+
+    const expectancy = closed.length > 0
+      ? (winRate / 100) * avgGain - ((100 - winRate) / 100) * avgLoss
+      : null;
+
     res.json({
       totalTrades: trades.length,
       openTrades: trades.filter(t => t.status === "open").length,
@@ -37,7 +49,8 @@ router.get("/stats", async (_req: Request, res: Response, next: NextFunction) =>
       totalRealizedPnl: Math.round(totalRealizedPnl * 100) / 100,
       bestTrade: bestTrade !== null ? Math.round(bestTrade * 100) / 100 : null,
       worstTrade: worstTrade !== null ? Math.round(worstTrade * 100) / 100 : null,
-      avgHoldTime: null,
+      avgHoldTime: avgHoldTimeHours !== null ? Math.round(avgHoldTimeHours * 10) / 10 : null,
+      expectancy: expectancy !== null ? Math.round(expectancy * 100) / 100 : null,
     });
   } catch (err) {
     next(err);
@@ -93,6 +106,76 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     logger.info({ tradeId: trade!.id, symbol, side, shares, entryPrice }, "Trade opened");
 
     res.status(201).json({ ...trade!, openedAt: trade!.openedAt.toISOString(), closedAt: null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/:id/close-partial", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = parseInt(req.params["id"] as string, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid trade ID", code: "VALIDATION_ERROR", message: "id must be a number" });
+      return;
+    }
+
+    const { percent, exitPrice } = req.body as { percent?: number; exitPrice?: number };
+    if (!percent || percent <= 0 || percent > 100) {
+      res.status(400).json({ error: "Validation failed", code: "VALIDATION_ERROR", message: "percent must be between 1 and 100" });
+      return;
+    }
+
+    const [trade] = await db.select().from(tradesTable).where(eq(tradesTable.id, id));
+    if (!trade) {
+      res.status(404).json({ error: "Trade not found", code: "NOT_FOUND", message: `No trade with id ${id}` });
+      return;
+    }
+    if (trade.status === "closed") {
+      res.status(400).json({ error: "Trade is already closed", code: "ALREADY_CLOSED", message: "Trade is already closed" });
+      return;
+    }
+
+    let closePrice = exitPrice;
+    if (!closePrice) {
+      const q = await getSingleQuote(trade.symbol);
+      closePrice = q.price;
+    }
+
+    const closingShares = Math.round(trade.shares * (percent / 100) * 10000) / 10000;
+    const remainingShares = Math.round((trade.shares - closingShares) * 10000) / 10000;
+    const { realizedPnl, realizedPnlPercent } = calculatePnl(trade.side as "long" | "short", trade.entryPrice, closePrice, closingShares);
+
+    if (remainingShares <= 0 || percent >= 100) {
+      const [closed] = await db.update(tradesTable).set({
+        exitPrice: closePrice,
+        realizedPnl: Math.round(realizedPnl * 100) / 100,
+        realizedPnlPercent: Math.round(realizedPnlPercent * 100) / 100,
+        status: "closed",
+        closedAt: new Date(),
+        notes: `Partial close (100%): ${trade.notes ?? ""}`.trim(),
+      }).where(eq(tradesTable.id, id)).returning();
+
+      logger.info({ tradeId: id, percent, exitPrice: closePrice, realizedPnl }, "Trade fully closed via partial close");
+      res.json({ ...closed!, openedAt: closed!.openedAt.toISOString(), closedAt: closed!.closedAt?.toISOString() ?? null, closedShares: closingShares, realizedPnl: Math.round(realizedPnl * 100) / 100 });
+      return;
+    }
+
+    const [updated] = await db.update(tradesTable).set({
+      shares: remainingShares,
+      notes: `${trade.notes ?? ""} | Partial close ${percent}% @ $${closePrice}`.trim(),
+    }).where(eq(tradesTable.id, id)).returning();
+
+    logger.info({ tradeId: id, percent, closingShares, remainingShares, exitPrice: closePrice, realizedPnl }, "Trade partially closed");
+
+    res.json({
+      ...updated!,
+      openedAt: updated!.openedAt.toISOString(),
+      closedAt: null,
+      closedShares: closingShares,
+      remainingShares,
+      realizedPnl: Math.round(realizedPnl * 100) / 100,
+      realizedPnlPercent: Math.round(realizedPnlPercent * 100) / 100,
+    });
   } catch (err) {
     next(err);
   }

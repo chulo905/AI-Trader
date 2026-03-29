@@ -4,7 +4,7 @@ import { useGetPortfolio } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/utils";
 import {
   LayoutDashboard, Sparkles, LineChart, Compass, Briefcase,
-  Settings, Bot, Shield, FlaskConical, Newspaper, Cable, Bell, Brain,
+  Settings, Bot, Shield, FlaskConical, Newspaper, Cable, Bell, Brain, ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ const navGroups: NavGroup[] = [
       { path: "/autonomous",label: "Auto Loop",  icon: Bot,             desc: "Autonomous execution" },
       { path: "/chart",     label: "Charts",     icon: LineChart,       desc: "Price charts" },
       { path: "/portfolio", label: "Portfolio",  icon: Briefcase,       desc: "Positions & P&L" },
+      { path: "/trade",     label: "Paper Trade", icon: ArrowRightLeft,  desc: "Order ticket" },
     ],
   },
   {

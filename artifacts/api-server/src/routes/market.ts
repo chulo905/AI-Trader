@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { getQuotes, getSingleQuote, getHistory, getMovers, scanMarket } from "../lib/tradersage";
 import { getChronosForecast } from "../lib/chronos";
 import { logger } from "../lib/logger";
+import { computeIndicators, type OHLCVBar } from "../lib/technicals";
 
 const router: IRouter = Router();
 
@@ -56,6 +57,20 @@ router.get("/:symbol/forecast", async (req, res) => {
     const msg = err instanceof Error ? err.message : "Forecast failed";
     logger.warn({ symbol, err }, "Chronos forecast error");
     res.status(503).json({ error: msg });
+  }
+});
+
+router.get("/:symbol/atr", async (req, res) => {
+  try {
+    const symbol = req.params["symbol"]!.toUpperCase();
+    const { candles, isMock } = await getHistory(symbol, "1d", "1M");
+    const bars: OHLCVBar[] = candles.map(h => ({
+      time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
+    }));
+    const indicators = computeIndicators(bars);
+    res.json({ symbol, atr14: indicators.atr14, isMock });
+  } catch {
+    res.status(500).json({ error: "Failed to compute ATR" });
   }
 });
 

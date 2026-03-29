@@ -4,6 +4,10 @@ import { computeIndicators, interpretIndicators, type OHLCVBar } from "./technic
 import { computeExtendedIndicators, interpretExtendedIndicators, type ExtendedIndicators } from "./indicators-extended";
 import { analyzePatterns, interpretPatterns } from "./patterns";
 import { logger } from "./logger";
+import { db, tradeIdeasTable } from "@workspace/db";
+import { desc } from "drizzle-orm";
+
+const TRADE_IDEAS_CACHE_MS = 30 * 60 * 1000;
 
 const analysisCache = new Map<string, { data: object; expiresAt: number }>();
 const pendingAnalysis = new Set<string>();
@@ -272,6 +276,31 @@ function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price
 }
 
 export async function generateTradeIdeas(limit: number = 10): Promise<object[]> {
+  try {
+    const existing = await db.select().from(tradeIdeasTable).orderBy(desc(tradeIdeasTable.generatedAt)).limit(limit);
+    if (existing.length > 0) {
+      const newest = existing[0]!.generatedAt;
+      const ageMs = Date.now() - new Date(newest).getTime();
+      if (ageMs < TRADE_IDEAS_CACHE_MS) {
+        return existing.map(r => ({
+          id: String(r.id),
+          symbol: r.symbol,
+          side: r.side,
+          entryZone: r.entryZone,
+          stopZone: r.stopZone,
+          targetZone: r.targetZone,
+          rationale: r.rationale,
+          confidence: r.confidence,
+          bias: r.bias,
+          riskReward: r.riskReward,
+          generatedAt: r.generatedAt.toISOString(),
+        }));
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Failed to read trade_ideas from DB, regenerating");
+  }
+
   const candidates = ["AAPL", "NVDA", "MSFT", "META", "GOOGL", "AMZN", "TSLA", "AMD", "SPY", "QQQ", "SMCI", "ARM", "PLTR", "COIN", "MSTR"];
   const selected = candidates.slice(0, Math.min(limit, candidates.length));
 
@@ -350,7 +379,29 @@ export async function generateTradeIdeas(limit: number = 10): Promise<object[]> 
     };
   }));
 
-  return ideas.sort((a, b) => Math.abs((b as any).score) - Math.abs((a as any).score));
+  const sorted = ideas.sort((a, b) => Math.abs((b as any).score) - Math.abs((a as any).score));
+
+  try {
+    const now = new Date();
+    await db.delete(tradeIdeasTable);
+    await db.insert(tradeIdeasTable).values(sorted.map(idea => ({
+      symbol: (idea as any).symbol,
+      side: (idea as any).side,
+      entryZone: (idea as any).entryZone,
+      targetZone: (idea as any).targetZone,
+      stopZone: (idea as any).stopZone,
+      rationale: (idea as any).rationale,
+      confidence: (idea as any).confidence,
+      bias: (idea as any).bias,
+      riskReward: (idea as any).riskReward,
+      generatedAt: now,
+    })));
+    logger.info({ count: sorted.length }, "Trade ideas persisted to DB");
+  } catch (err) {
+    logger.warn({ err }, "Failed to persist trade ideas to DB");
+  }
+
+  return sorted;
 }
 
 function buildRationale(
