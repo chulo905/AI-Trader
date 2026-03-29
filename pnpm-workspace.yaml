@@ -39,6 +39,7 @@ onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
   - msw
+  - tulind
   - unrs-resolver
 
 overrides:

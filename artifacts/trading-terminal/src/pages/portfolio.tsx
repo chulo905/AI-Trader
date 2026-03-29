@@ -1,6 +1,6 @@
 import { useGetPortfolio, useGetTradeStats, useGetTrades, useGetPositions, useCloseTrade } from "@workspace/api-client-react";
 import { Card, CardHeader, CardTitle, CardContent, StatCard, PageTransition, Skeleton, ErrorPanel, Btn, PriceChange, Table } from "@/components/terminal-ui";
-import { formatCurrency, formatPrice, formatPercent } from "@/lib/utils";
+import { formatCurrency, formatPrice, formatPercent, resolvePositions } from "@/lib/utils";
 import { useAppState } from "@/hooks/use-app-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { Briefcase, TrendingUp, Trophy, Target, X } from "lucide-react";
@@ -12,7 +12,7 @@ export default function PortfolioPage() {
   const { data: portfolio, isLoading: loadPort, error: errPort } = useGetPortfolio();
   const { data: stats, isLoading: loadStats } = useGetTradeStats();
   const { data: positionsData, isLoading: loadPos } = useGetPositions();
-  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
+  const positions = resolvePositions(positionsData);
   const { data: trades, isLoading: loadTrades } = useGetTrades({ limit: 30 });
 
   const closeMutation = useCloseTrade({

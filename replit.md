@@ -64,7 +64,7 @@ A professional Bloomberg-style dark terminal for paper trading, AI technical ana
 ### Critical Data-Shape Pattern
 
 Many API endpoints return wrapped objects `{ data, isMock: true }` — NOT raw arrays. Always extract:
-- Positions: `Array.isArray(x?.positions) ? x.positions : Array.isArray(x) ? x : []`
+- Positions: use `resolvePositions(data)` from `@/lib/utils` — handles both `{ positions, isMock }` envelope and raw arrays
 - Chart history: `data?.candles` (from `{ candles, isMock }`)
 - Portfolio: flat object (no wrapping): `{ accountSize, cash, equity, totalPnl, ... }`
 
@@ -73,6 +73,15 @@ Files already fixed for this pattern: `chart.tsx`, `portfolio.tsx`, `dashboard.t
 ### Live Market Data
 - `TRADER_SAGE_API_KEY` env variable: set to enable real Trader Sage API
 - Without the key (or if unreachable), all endpoints return deterministic mock data with realistic price ranges
+
+### AI Enhancements (HuggingFace + tulind)
+- `HUGGINGFACE_API_TOKEN` env variable: required to enable Chronos price forecasting and Financial RoBERTa sentiment analysis
+  - Without the token, `/api/market/:symbol/forecast` returns 503; the Analysis page shows a fallback message
+  - Sentiment falls back through: Financial RoBERTa → DistilRoBERTa → Prosus FinBERT → GPT-only
+- `GET /api/market/:symbol/forecast` — Chronos T5 Small probabilistic 5-bar forecast with direction, confidence interval, and horizon
+- `GET /api/autopilot/:symbol` response includes `extended` field with Williams %R, CCI, and Aroon (all computed via tulind C bindings)
+- Extended indicators are displayed on the Analysis page and AI Pilot page
+- **tulind** C bindings are compiled via `onlyBuiltDependencies` in `pnpm-workspace.yaml`; `src/types/tulind.d.ts` provides TypeScript declarations
 
 ## TypeScript & Composite Projects
 

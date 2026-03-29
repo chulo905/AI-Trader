@@ -1,23 +1,149 @@
 import { useGetAnalysis } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
 import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, SignalBadge, TerminalTable } from "@/components/terminal-ui";
 import { formatPrice } from "@/lib/utils";
-import { Brain, Target, Activity, Zap, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, AlertTriangle } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Brain, Target, Activity, Zap, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, AlertTriangle, Sparkles } from "lucide-react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
+import type { ExtendedIndicators } from "@/hooks/use-autopilot";
+
+interface DetectedPattern {
+  type: string;
+  direction: string;
+  confidence: number;
+  description: string;
+  keyLevel?: number;
+}
+
+interface Divergence {
+  type: string | null;
+  strength: string | null;
+  description: string | null;
+}
+
+interface SupportResistance {
+  pivotPoint: number | null;
+  r1: number | null;
+  r2: number | null;
+  s1: number | null;
+  s2: number | null;
+}
+
+interface AnalysisExtra {
+  aiPowered?: boolean;
+  extended?: ExtendedIndicators;
+  detectedPatterns?: DetectedPattern[];
+  divergence?: Divergence;
+  supportResistance?: SupportResistance;
+}
+
+interface ChronosForecast {
+  direction: "bullish" | "bearish" | "neutral";
+  forecastPct: number;
+  confidenceLow: number;
+  confidenceHigh: number;
+  horizon: number;
+  generatedAt: string;
+}
+
+function AIPriceForecastCard({ symbol }: { symbol: string }) {
+  const { data: forecast, isLoading, error } = useQuery<ChronosForecast>({
+    queryKey: [`/api/market/${symbol}/forecast`],
+    queryFn: () => customFetch<ChronosForecast>(`/api/market/${symbol}/forecast`),
+    staleTime: 30 * 60 * 1000,
+    retry: 1,
+  });
+
+  if (isLoading) {
+    return (
+      <TerminalCard>
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+          <h3 className="font-semibold uppercase text-xs tracking-widest text-muted-foreground">AI Price Forecast</h3>
+        </div>
+        <div className="animate-pulse flex flex-col gap-2">
+          <div className="h-8 bg-muted/30 rounded" />
+          <div className="h-4 bg-muted/20 rounded w-3/4" />
+        </div>
+      </TerminalCard>
+    );
+  }
+
+  if (error || !forecast) {
+    return (
+      <TerminalCard className="border-muted/30">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-muted-foreground" />
+          <h3 className="font-semibold uppercase text-xs tracking-widest text-muted-foreground">AI Price Forecast</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Chronos forecast unavailable. Set <span className="font-mono text-primary">HUGGINGFACE_API_TOKEN</span> to enable AI forecasting.
+        </p>
+      </TerminalCard>
+    );
+  }
+
+  const isBullish = forecast.direction === "bullish";
+  const isBearish = forecast.direction === "bearish";
+  const directionColor = isBullish ? "text-bullish" : isBearish ? "text-bearish" : "text-amber-400";
+  const borderColor = isBullish ? "border-bullish/20 bg-bullish/5" : isBearish ? "border-bearish/20 bg-bearish/5" : "border-amber-400/20 bg-amber-400/5";
+
+  const sign = (n: number) => (n >= 0 ? "+" : "");
+
+  return (
+    <TerminalCard className={cn(borderColor)}>
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="w-4 h-4 text-primary" />
+        <h3 className="font-semibold uppercase text-xs tracking-widest text-muted-foreground">AI Price Forecast</h3>
+        <span className="ml-auto text-xs font-mono text-muted-foreground">{forecast.horizon}-bar ahead</span>
+      </div>
+
+      <div className="flex items-center gap-3 mb-3">
+        {isBullish ? (
+          <TrendingUp className={cn("w-8 h-8", directionColor)} />
+        ) : isBearish ? (
+          <TrendingDown className={cn("w-8 h-8", directionColor)} />
+        ) : (
+          <Minus className={cn("w-8 h-8", directionColor)} />
+        )}
+        <div>
+          <div className={cn("text-2xl font-bold font-mono", directionColor)}>
+            {sign(forecast.forecastPct)}{forecast.forecastPct.toFixed(2)}%
+          </div>
+          <div className="text-xs text-muted-foreground capitalize font-semibold">{forecast.direction}</div>
+        </div>
+        <div className="ml-auto text-right">
+          <div className="text-xs text-muted-foreground mb-1">95% CI</div>
+          <div className="font-mono text-xs">
+            <span className="text-bearish">{sign(forecast.confidenceLow)}{forecast.confidenceLow.toFixed(2)}%</span>
+            <span className="text-muted-foreground"> / </span>
+            <span className="text-bullish">{sign(forecast.confidenceHigh)}{forecast.confidenceHigh.toFixed(2)}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground border-t border-border/30 pt-2 flex items-center gap-1">
+        <Brain className="w-3 h-3" />
+        Powered by Amazon Chronos · {new Date(forecast.generatedAt).toLocaleTimeString()}
+      </div>
+    </TerminalCard>
+  );
+}
 
 function AnalysisPageInner() {
   const { selectedSymbol } = useAppState();
   const queryClient = useQueryClient();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: analysis, isLoading, error } = useGetAnalysis(selectedSymbol, { timeframe: '1d' }, {
+  const { data: analysisRaw, isLoading, error } = useGetAnalysis(selectedSymbol, { timeframe: '1d' }, {
     query: { staleTime: 5 * 60 * 1000, retry: 1 },
   });
+  const analysis = analysisRaw as (typeof analysisRaw & AnalysisExtra) | undefined;
 
-  const aiPowered = analysis != null && "aiPowered" in analysis && (analysis as Record<string, unknown>).aiPowered === true;
+  const aiPowered = analysis?.aiPowered === true;
 
   useEffect(() => {
     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -30,6 +156,8 @@ function AnalysisPageInner() {
 
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [analysis, aiPowered, selectedSymbol, queryClient]);
+
+  const extendedIndicators = analysis?.extended;
 
   return (
     <PageTransition>
@@ -122,11 +250,57 @@ function AnalysisPageInner() {
               </TerminalTable>
             </TerminalCard>
 
+            {/* Extended Indicators: Williams %R, CCI, Aroon */}
+            {extendedIndicators && (extendedIndicators.williamsR != null || extendedIndicators.cci != null || extendedIndicators.aroon != null) && (
+              <TerminalCard>
+                <div className="flex items-center gap-2 mb-4">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold uppercase text-xs tracking-widest text-muted-foreground">Extended Indicators</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {extendedIndicators.williamsR != null && (
+                    <div className="p-3 rounded-sm border border-border/50 bg-background/50">
+                      <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Williams %R</div>
+                      <div className={cn("text-lg font-mono font-bold", extendedIndicators.williamsR >= -20 ? "text-bearish" : extendedIndicators.williamsR <= -80 ? "text-bullish" : "text-foreground")}>
+                        {extendedIndicators.williamsR}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {extendedIndicators.williamsR >= -20 ? "Overbought" : extendedIndicators.williamsR <= -80 ? "Oversold" : "Neutral"} · Range: 0 to -100
+                      </div>
+                    </div>
+                  )}
+                  {extendedIndicators.cci != null && (
+                    <div className="p-3 rounded-sm border border-border/50 bg-background/50">
+                      <div className="text-xs text-muted-foreground uppercase font-bold mb-1">CCI (20)</div>
+                      <div className={cn("text-lg font-mono font-bold", extendedIndicators.cci >= 100 ? "text-bearish" : extendedIndicators.cci <= -100 ? "text-bullish" : "text-foreground")}>
+                        {extendedIndicators.cci}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {extendedIndicators.cci >= 100 ? "Overbought" : extendedIndicators.cci <= -100 ? "Oversold" : "Normal range (±100)"}
+                      </div>
+                    </div>
+                  )}
+                  {extendedIndicators.aroon && (
+                    <div className="p-3 rounded-sm border border-border/50 bg-background/50">
+                      <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Aroon (25)</div>
+                      <div className="flex gap-2 items-baseline">
+                        <span className="text-bullish font-mono font-bold">{extendedIndicators.aroon.aroonUp}</span>
+                        <span className="text-muted-foreground text-xs">/</span>
+                        <span className="text-bearish font-mono font-bold">{extendedIndicators.aroon.aroonDown}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 capitalize">
+                        Osc: {extendedIndicators.aroon.aroonOscillator > 0 ? "+" : ""}{extendedIndicators.aroon.aroonOscillator} · {extendedIndicators.aroon.trend.replace(/-/g, " ")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TerminalCard>
+            )}
+
             {/* Chart Patterns Section */}
             {(() => {
-              const a = analysis as any;
-              const patterns = a.detectedPatterns as Array<{ type: string; direction: string; confidence: number; description: string; keyLevel?: number }> | undefined;
-              const divergence = a.divergence as { type: string | null; strength: string | null; description: string | null } | undefined;
+              const patterns = analysis?.detectedPatterns;
+              const divergence = analysis?.divergence;
               const hasContent = (patterns && patterns.length > 0) || divergence?.type;
               if (!hasContent) return null;
               return (
@@ -188,6 +362,10 @@ function AnalysisPageInner() {
 
           {/* Right Sidebar */}
           <div className="lg:col-span-1 flex flex-col gap-6">
+
+            {/* AI Price Forecast */}
+            <AIPriceForecastCard symbol={selectedSymbol} />
+
             <TerminalCard title="Key Price Levels">
               <div className="flex flex-col gap-3">
                 {analysis.keyLevels.map((lvl, i) => (
@@ -208,7 +386,7 @@ function AnalysisPageInner() {
 
             {/* Pivot Points */}
             {(() => {
-              const sr = (analysis as any).supportResistance as { pivotPoint: number | null; r1: number | null; r2: number | null; s1: number | null; s2: number | null } | null | undefined;
+              const sr = analysis?.supportResistance;
               if (!sr?.pivotPoint) return null;
               return (
                 <TerminalCard>

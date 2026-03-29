@@ -2,7 +2,7 @@ import { db, tradesTable, autonomousConfigTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getSingleQuote, getHistory } from "./tradersage";
 import { computeIndicators, type OHLCVBar } from "./technicals";
-import { computeExtendedIndicators } from "./indicators-extended";
+import { computeExtendedIndicators, type ExtendedIndicators } from "./indicators-extended";
 import { analyzePatterns, type PatternAnalysis } from "./patterns";
 import { checkRisk, enforceStopLosses } from "./risk-manager";
 import { openai } from "./openai-client";
@@ -43,7 +43,7 @@ interface ScoredDecision {
 
 function scoreDecision(
   indicators: ReturnType<typeof computeIndicators>,
-  extended: ReturnType<typeof computeExtendedIndicators>,
+  extended: ExtendedIndicators,
   patterns: PatternAnalysis,
   changePercent: number
 ): ScoredDecision {
@@ -201,7 +201,7 @@ async function runAIDecision(
   symbol: string,
   quote: { price: number; changePercent: number },
   indicators: ReturnType<typeof computeIndicators>,
-  extended: ReturnType<typeof computeExtendedIndicators>,
+  extended: ExtendedIndicators,
   patterns: PatternAnalysis,
   scored: ScoredDecision
 ): Promise<{ action: string; reason: string }> {
@@ -276,7 +276,7 @@ async function processSymbol(config: typeof autonomousConfigTable.$inferSelect) 
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const indicators = computeIndicators(bars);
-    const extended = computeExtendedIndicators(bars);
+    const extended = await computeExtendedIndicators(bars);
     const patterns = analyzePatterns(bars, indicators.rsiSeries);
     const scored = scoreDecision(indicators, extended, patterns, quote.changePercent);
     const currentPrices: Record<string, number> = { [symbol]: quote.price };

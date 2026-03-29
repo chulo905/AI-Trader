@@ -8,13 +8,14 @@ import {
   ActionBadge, ConfidenceRing, PriceChange, PageTransition, Skeleton, ErrorPanel
 } from "@/components/terminal-ui";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { formatCurrency, formatPrice } from "@/lib/utils";
+import { formatCurrency, formatPrice, resolvePositions } from "@/lib/utils";
 import {
   Sparkles, RefreshCw, CheckCircle2, AlertTriangle, Lightbulb,
-  TrendingUp, Shield, Zap
+  TrendingUp, Shield, Zap, Activity
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import type { ExtendedIndicators } from "@/hooks/use-autopilot";
 
 export default function AIPilotPage() {
   const { selectedSymbol } = useAppState();
@@ -33,7 +34,7 @@ export default function AIPilotPage() {
   } = useAiPilotExecution(selectedSymbol);
 
   const { data: positionsData } = useGetPositions({ query: { staleTime: 10000 } });
-  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
+  const positions = resolvePositions(positionsData);
   const closeMutation = useCloseTrade({
     mutation: {
       onSuccess: () => {
@@ -44,7 +45,7 @@ export default function AIPilotPage() {
     }
   });
 
-  const symbolPositions = positions.filter((p: any) => p.symbol === selectedSymbol && p.side === "long");
+  const symbolPositions = positions.filter((p) => p.symbol === selectedSymbol && p.side === "long");
   const isBuy  = decision?.action?.toUpperCase().includes("BUY");
   const isSell = decision?.action?.toUpperCase().includes("SELL");
 
@@ -247,6 +248,8 @@ export default function AIPilotPage() {
                 Paper trade only. No real money involved. Not financial advice.
               </p>
 
+              <ExtendedIndicatorsPanel extended={decision?.extended} />
+
               {symbolPositions.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -296,6 +299,49 @@ function PlanRow({ label, sub, children }: { label: string; sub?: string; childr
       </div>
       <div className="text-right shrink-0">{children}</div>
     </div>
+  );
+}
+
+function ExtendedIndicatorsPanel({ extended }: { extended?: ExtendedIndicators }) {
+  if (!extended) return null;
+  const { williamsR, cci, aroon } = extended;
+  if (williamsR == null && cci == null && !aroon) return null;
+
+  return (
+    <Card>
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Extended Indicators</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {williamsR != null && (
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Williams %R</span>
+              <span className={cn("font-mono font-bold", williamsR >= -20 ? "text-bearish" : williamsR <= -80 ? "text-bullish" : "text-foreground")}>
+                {williamsR} {williamsR >= -20 ? "· Overbought" : williamsR <= -80 ? "· Oversold" : "· Neutral"}
+              </span>
+            </div>
+          )}
+          {cci != null && (
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">CCI (20)</span>
+              <span className={cn("font-mono font-bold", cci >= 100 ? "text-bearish" : cci <= -100 ? "text-bullish" : "text-foreground")}>
+                {cci} {cci >= 100 ? "· Overbought" : cci <= -100 ? "· Oversold" : "· Normal"}
+              </span>
+            </div>
+          )}
+          {aroon && (
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Aroon (25)</span>
+              <span className={cn("font-mono font-bold", aroon.aroonOscillator > 20 ? "text-bullish" : aroon.aroonOscillator < -20 ? "text-bearish" : "text-foreground")}>
+                {aroon.aroonUp}/{aroon.aroonDown} · {aroon.trend.replace(/-/g, " ")}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
 

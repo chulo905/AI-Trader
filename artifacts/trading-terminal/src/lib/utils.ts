@@ -39,3 +39,16 @@ export function formatNumber(value: number | null | undefined): string {
   if (value >= 1e3) return (value / 1e3).toFixed(2) + "K";
   return new Intl.NumberFormat("en-US").format(value);
 }
+
+interface PositionsEnvelope {
+  positions: unknown[];
+}
+
+export function resolvePositions<T>(data: T[] | PositionsEnvelope | null | undefined): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data === "object" && "positions" in data && Array.isArray((data as PositionsEnvelope).positions)) {
+    return (data as PositionsEnvelope).positions as T[];
+  }
+  return [];
+}

@@ -1,13 +1,23 @@
 import {
   IchimokuCloud,
   Stochastic,
-  WilliamsR,
-  CCI,
   PSAR,
   ADX,
   OBV,
 } from "technicalindicators";
+import { createRequire } from "module";
 import type { OHLCVBar } from "./technicals";
+import type { indicators as TulindIndicators } from "tulind";
+
+const _require = createRequire(import.meta.url);
+const tulind = _require("tulind") as { indicators: typeof TulindIndicators };
+
+export interface AroonValues {
+  aroonUp: number;
+  aroonDown: number;
+  aroonOscillator: number;
+  trend: "strong-bullish" | "bullish" | "neutral" | "bearish" | "strong-bearish";
+}
 
 export interface ExtendedIndicators {
   ichimoku: {
@@ -35,9 +45,93 @@ export interface ExtendedIndicators {
   } | null;
   obv: number | null;
   obvTrend: "rising" | "falling" | "flat" | null;
+  aroon: AroonValues | null;
 }
 
-export function computeExtendedIndicators(bars: OHLCVBar[]): ExtendedIndicators {
+function tulindIndicator(
+  name: string,
+  inputs: number[][],
+  options: number[]
+): Promise<number[][]> {
+  return new Promise((resolve, reject) => {
+    try {
+      tulind.indicators[name].indicator(inputs, options, (err: unknown, results: number[][]) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+async function computeWilliamsRTulind(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period = 14
+): Promise<number | null> {
+  try {
+    const results = await tulindIndicator("willr", [highs, lows, closes], [period]);
+    const series = results[0];
+    if (!series || series.length === 0) return null;
+    const val = series[series.length - 1];
+    if (val === undefined || !isFinite(val)) return null;
+    return Math.round(val * 10) / 10;
+  } catch {
+    return null;
+  }
+}
+
+async function computeCCITulind(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period = 20
+): Promise<number | null> {
+  try {
+    const results = await tulindIndicator("cci", [highs, lows, closes], [period]);
+    const series = results[0];
+    if (!series || series.length === 0) return null;
+    const val = series[series.length - 1];
+    if (val === undefined || !isFinite(val)) return null;
+    return Math.round(val * 10) / 10;
+  } catch {
+    return null;
+  }
+}
+
+async function computeAroonTulind(
+  highs: number[],
+  lows: number[],
+  period = 25
+): Promise<AroonValues | null> {
+  try {
+    const results = await tulindIndicator("aroon", [highs, lows], [period]);
+    if (results.length < 2) return null;
+    const aroonDownSeries = results[0]!;
+    const aroonUpSeries = results[1]!;
+    const lastDown = aroonDownSeries[aroonDownSeries.length - 1];
+    const lastUp = aroonUpSeries[aroonUpSeries.length - 1];
+    if (lastDown === undefined || lastUp === undefined || !isFinite(lastDown) || !isFinite(lastUp)) {
+      return null;
+    }
+    const up = Math.round(lastUp * 10) / 10;
+    const down = Math.round(lastDown * 10) / 10;
+    const osc = Math.round((up - down) * 10) / 10;
+    let trend: AroonValues["trend"];
+    if (osc >= 50) trend = "strong-bullish";
+    else if (osc >= 20) trend = "bullish";
+    else if (osc <= -50) trend = "strong-bearish";
+    else if (osc <= -20) trend = "bearish";
+    else trend = "neutral";
+    return { aroonUp: up, aroonDown: down, aroonOscillator: osc, trend };
+  } catch {
+    return null;
+  }
+}
+
+export async function computeExtendedIndicators(bars: OHLCVBar[]): Promise<ExtendedIndicators> {
   const empty: ExtendedIndicators = {
     ichimoku: null,
     stochastic: null,
@@ -47,6 +141,7 @@ export function computeExtendedIndicators(bars: OHLCVBar[]): ExtendedIndicators 
     adx: null,
     obv: null,
     obvTrend: null,
+    aroon: null,
   };
 
   if (bars.length < 30) return empty;
@@ -102,34 +197,6 @@ export function computeExtendedIndicators(bars: OHLCVBar[]): ExtendedIndicators 
         k: Math.round(last.k * 10) / 10,
         d: Math.round(last.d * 10) / 10,
       };
-    }
-  } catch { }
-
-  let williamsR: number | null = null;
-  try {
-    const wrResult = WilliamsR.calculate({
-      high: highs,
-      low: lows,
-      close: closes,
-      period: 14,
-    });
-    const last = wrResult[wrResult.length - 1];
-    if (last !== undefined) {
-      williamsR = Math.round(last * 10) / 10;
-    }
-  } catch { }
-
-  let cci: number | null = null;
-  try {
-    const cciResult = CCI.calculate({
-      high: highs,
-      low: lows,
-      close: closes,
-      period: 20,
-    });
-    const last = cciResult[cciResult.length - 1];
-    if (last !== undefined) {
-      cci = Math.round(last * 10) / 10;
     }
   } catch { }
 
@@ -190,7 +257,13 @@ export function computeExtendedIndicators(bars: OHLCVBar[]): ExtendedIndicators 
     }
   } catch { }
 
-  return { ichimoku, stochastic, williamsR, cci, parabolicSAR, adx, obv, obvTrend };
+  const [williamsR, cci, aroon] = await Promise.all([
+    bars.length >= 16 ? computeWilliamsRTulind(highs, lows, closes, 14) : Promise.resolve(null),
+    bars.length >= 22 ? computeCCITulind(highs, lows, closes, 20) : Promise.resolve(null),
+    bars.length >= 27 ? computeAroonTulind(highs, lows, 25) : Promise.resolve(null),
+  ]);
+
+  return { ichimoku, stochastic, williamsR, cci, parabolicSAR, adx, obv, obvTrend, aroon };
 }
 
 export function interpretExtendedIndicators(ext: ExtendedIndicators, currentPrice: number): string {
@@ -241,6 +314,11 @@ export function interpretExtendedIndicators(ext: ExtendedIndicators, currentPric
   if (ext.obv !== null && ext.obvTrend !== null) {
     const obvK = ext.obv >= 1_000_000 ? `${(ext.obv / 1_000_000).toFixed(1)}M` : ext.obv >= 1_000 ? `${(ext.obv / 1_000).toFixed(0)}K` : `${ext.obv}`;
     lines.push(`OBV at ${obvK} — ${ext.obvTrend} trend (${ext.obvTrend === "rising" ? "accumulation, bullish" : ext.obvTrend === "falling" ? "distribution, bearish" : "neutral volume trend"})`);
+  }
+
+  if (ext.aroon) {
+    const { aroonUp, aroonDown, aroonOscillator, trend } = ext.aroon;
+    lines.push(`Aroon Up/Down: ${aroonUp}/${aroonDown} (osc: ${aroonOscillator}) — ${trend.replace(/-/g, " ")} bias`);
   }
 
   return lines.join(". ");

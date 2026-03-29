@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGetPositions, useCreateTrade, useCloseTrade, useGetQuote } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { resolvePositions } from "@/lib/utils";
 
 export type TradeSide = "long" | "short";
 
@@ -8,7 +9,7 @@ export function usePaperTradeForm(selectedSymbol: string) {
   const queryClient = useQueryClient();
 
   const { data: positionsData, isLoading, error } = useGetPositions();
-  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
+  const positions = resolvePositions(positionsData);
   const { data: quote } = useGetQuote(selectedSymbol);
 
   const [side, setSide] = useState<TradeSide>("long");

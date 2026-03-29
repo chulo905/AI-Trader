@@ -1,6 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 
+export interface AroonValues {
+  aroonUp: number;
+  aroonDown: number;
+  aroonOscillator: number;
+  trend: string;
+}
+
+export interface ExtendedIndicators {
+  williamsR?: number | null;
+  cci?: number | null;
+  aroon?: AroonValues | null;
+}
+
 export interface AutopilotDecision {
   symbol: string;
   price: number;
@@ -18,6 +31,7 @@ export interface AutopilotDecision {
   aiPowered: boolean;
   generatedAt: string;
   indicators?: Record<string, number | string | boolean | null>;
+  extended?: ExtendedIndicators;
 }
 
 export interface ExecutedTrade {

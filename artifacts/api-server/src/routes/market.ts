@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getQuotes, getSingleQuote, getHistory, getMovers, scanMarket } from "../lib/tradersage";
+import { getChronosForecast } from "../lib/chronos";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -37,6 +39,24 @@ router.get("/quote/:symbol", async (req, res) => {
   const symbol = req.params["symbol"]!.toUpperCase();
   const data = await getSingleQuote(symbol);
   res.json(data);
+});
+
+router.get("/:symbol/forecast", async (req, res) => {
+  const symbol = req.params["symbol"]!.toUpperCase();
+  try {
+    const { candles } = await getHistory(symbol, "1d", "3M");
+    const closingPrices = candles.map(c => c.close);
+    if (closingPrices.length < 10) {
+      res.status(422).json({ error: "Insufficient price history for forecast (need at least 10 bars)" });
+      return;
+    }
+    const forecast = await getChronosForecast(symbol, closingPrices);
+    res.json(forecast);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Forecast failed";
+    logger.warn({ symbol, err }, "Chronos forecast error");
+    res.status(503).json({ error: msg });
+  }
 });
 
 export default router;

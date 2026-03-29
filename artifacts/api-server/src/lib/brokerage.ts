@@ -1,5 +1,64 @@
+import { createRequire } from "module";
 import { logger } from "./logger";
 import { isMarketOpen as sharedIsMarketOpen } from "./market-hours";
+
+const _require = createRequire(import.meta.url);
+
+interface AlpacaSDKConstructor {
+  new (config: AlpacaSDKConfig): AlpacaSDKClient;
+}
+
+interface AlpacaSDKConfig {
+  keyId: string;
+  secretKey: string;
+  paper: boolean;
+  usePolygon?: boolean;
+}
+
+interface AlpacaAccountResponse {
+  equity?: string;
+  cash?: string;
+  buying_power?: string;
+  daytrade_count?: number;
+}
+
+interface AlpacaPositionResponse {
+  symbol: string;
+  qty: string;
+  avg_entry_price: string;
+  current_price: string;
+  unrealized_pl: string;
+  unrealized_plpc: string;
+}
+
+interface AlpacaOrderResponse {
+  id: string;
+  status: string;
+}
+
+interface AlpacaClockResponse {
+  is_open?: boolean;
+}
+
+interface AlpacaOrderRequest {
+  symbol: string;
+  qty: number;
+  side: "buy" | "sell";
+  type: string;
+  time_in_force: string;
+  limit_price?: number;
+  stop_price?: number;
+}
+
+interface AlpacaSDKClient {
+  getAccount(): Promise<AlpacaAccountResponse>;
+  getPositions(): Promise<AlpacaPositionResponse[]>;
+  createOrder(order: AlpacaOrderRequest): Promise<AlpacaOrderResponse>;
+  cancelOrder(orderId: string): Promise<void>;
+  getClock(): Promise<AlpacaClockResponse>;
+}
+
+const AlpacaSDK = _require("@alpacahq/alpaca-trade-api") as AlpacaSDKConstructor;
 
 export type BrokerageProvider = "paper" | "alpaca" | "interactive-brokers" | "td-ameritrade";
 
@@ -84,29 +143,25 @@ class PaperBrokerageAdapter implements BrokerageAdapter {
 class AlpacaAdapter implements BrokerageAdapter {
   provider: BrokerageProvider = "alpaca";
   connected = false;
-  private apiKey: string;
-  private apiSecret: string;
-  private baseUrl: string;
+  private client: AlpacaSDKClient | null = null;
+  private paper: boolean;
 
   constructor(apiKey: string, apiSecret: string, paper = true) {
-    this.apiKey = apiKey;
-    this.apiSecret = apiSecret;
-    this.baseUrl = paper ? "https://paper-api.alpaca.markets" : "https://api.alpaca.markets";
+    this.paper = paper;
     this.connected = !!(apiKey && apiSecret);
-  }
-
-  private get headers() {
-    return {
-      "APCA-API-KEY-ID": this.apiKey,
-      "APCA-API-SECRET-KEY": this.apiSecret,
-      "Content-Type": "application/json",
-    };
+    if (this.connected) {
+      this.client = new AlpacaSDK({
+        keyId: apiKey,
+        secretKey: apiSecret,
+        paper,
+        usePolygon: false,
+      });
+    }
   }
 
   async getAccount(): Promise<BrokerageAccount> {
-    if (!this.connected) throw new Error("Alpaca not connected. Set ALPACA_API_KEY and ALPACA_API_SECRET.");
-    const res = await fetch(`${this.baseUrl}/v2/account`, { headers: this.headers });
-    const data = await res.json() as any;
+    if (!this.client) throw new Error("Alpaca not connected. Set ALPACA_API_KEY and ALPACA_API_SECRET.");
+    const data = await this.client.getAccount();
     return {
       equity: parseFloat(data.equity ?? "0"),
       cash: parseFloat(data.cash ?? "0"),
@@ -114,15 +169,14 @@ class AlpacaAdapter implements BrokerageAdapter {
       dayTradeCount: data.daytrade_count ?? 0,
       provider: "alpaca",
       connected: true,
-      paperTrading: this.baseUrl.includes("paper"),
+      paperTrading: this.paper,
     };
   }
 
   async getPositions(): Promise<BrokeragePosition[]> {
-    if (!this.connected) return [];
-    const res = await fetch(`${this.baseUrl}/v2/positions`, { headers: this.headers });
-    const data = await res.json() as any;
-    return (data ?? []).map((p: any) => ({
+    if (!this.client) return [];
+    const data = await this.client.getPositions();
+    return data.map((p) => ({
       symbol: p.symbol,
       qty: parseFloat(p.qty),
       avgEntryPrice: parseFloat(p.avg_entry_price),
@@ -133,8 +187,8 @@ class AlpacaAdapter implements BrokerageAdapter {
   }
 
   async submitOrder(order: BrokerageOrder): Promise<{ orderId: string; status: string; message: string }> {
-    if (!this.connected) throw new Error("Alpaca not connected.");
-    const body = {
+    if (!this.client) throw new Error("Alpaca not connected.");
+    const data = await this.client.createOrder({
       symbol: order.symbol,
       qty: order.qty,
       side: order.side,
@@ -142,13 +196,7 @@ class AlpacaAdapter implements BrokerageAdapter {
       time_in_force: order.timeInForce,
       limit_price: order.limitPrice,
       stop_price: order.stopPrice,
-    };
-    const res = await fetch(`${this.baseUrl}/v2/orders`, {
-      method: "POST",
-      headers: this.headers,
-      body: JSON.stringify(body),
     });
-    const data = await res.json() as any;
     return {
       orderId: data.id,
       status: data.status,
@@ -157,21 +205,25 @@ class AlpacaAdapter implements BrokerageAdapter {
   }
 
   async cancelOrder(orderId: string): Promise<boolean> {
-    if (!this.connected) return false;
-    const res = await fetch(`${this.baseUrl}/v2/orders/${orderId}`, {
-      method: "DELETE",
-      headers: this.headers,
-    });
-    return res.ok;
+    if (!this.client) return false;
+    try {
+      await this.client.cancelOrder(orderId);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async isMarketOpen(): Promise<boolean> {
-    if (!this.connected) {
+    if (!this.client) {
       return sharedIsMarketOpen();
     }
-    const res = await fetch(`${this.baseUrl}/v2/clock`, { headers: this.headers });
-    const data = await res.json() as any;
-    return data.is_open ?? false;
+    try {
+      const clock = await this.client.getClock();
+      return clock.is_open ?? false;
+    } catch {
+      return sharedIsMarketOpen();
+    }
   }
 }
 
@@ -185,7 +237,7 @@ export function getBrokerageAdapter(): BrokerageAdapter {
 
   if (alpacaKey && alpacaSecret) {
     _adapter = new AlpacaAdapter(alpacaKey, alpacaSecret, true);
-    logger.info("Using Alpaca paper trading adapter");
+    logger.info("Using Alpaca paper trading adapter (official SDK)");
   } else {
     _adapter = new PaperBrokerageAdapter();
     logger.info("Using built-in paper trading adapter");

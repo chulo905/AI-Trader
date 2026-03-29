@@ -3,6 +3,7 @@ import { db, tradesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getSingleQuote, getHistory } from "../lib/tradersage";
 import { computeIndicators, type OHLCVBar } from "../lib/technicals";
+import { computeExtendedIndicators, type ExtendedIndicators } from "../lib/indicators-extended";
 import { openai } from "../lib/openai-client";
 import { logger } from "../lib/logger";
 
@@ -16,7 +17,8 @@ async function runAIDecisionInBackground(
   symbol: string,
   cacheKey: string,
   quote: { price: number; changePercent: number; volume: number },
-  indicators: ReturnType<typeof computeIndicators>
+  indicators: ReturnType<typeof computeIndicators>,
+  extended: ExtendedIndicators
 ) {
   const prompt = `You are an expert AI trading advisor helping a beginner investor. Analyze this stock and give a clear, confident trading decision in plain, simple English (no jargon).
 
@@ -77,6 +79,7 @@ Return ONLY a valid JSON object:
       takeProfit: parsed.takeProfit ?? Math.round((quote.price + atr * 3) * 100) / 100,
       riskReward: parsed.riskReward ?? 2.0,
       indicators,
+      extended,
       aiPowered: true,
       generatedAt: new Date().toISOString(),
     };
@@ -91,7 +94,7 @@ Return ONLY a valid JSON object:
   }
 }
 
-function buildFallbackDecision(symbol: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>) {
+function buildFallbackDecision(symbol: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>, extended: ExtendedIndicators) {
   const rsi = indicators.rsi14;
   const macdBull = indicators.macd ? indicators.macd.histogram > 0 : null;
   const aboveSma50 = indicators.priceVsSma50 !== null ? indicators.priceVsSma50 > 0 : null;
@@ -129,6 +132,7 @@ function buildFallbackDecision(symbol: string, quote: { price: number; changePer
     takeProfit: Math.round((quote.price + atr * 3) * 100) / 100,
     riskReward: 2.0,
     indicators,
+    extended,
     aiPowered: false,
     generatedAt: new Date().toISOString(),
   };
@@ -154,13 +158,14 @@ router.get("/:symbol", async (req, res) => {
       time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
     }));
     const indicators = computeIndicators(bars);
+    const extended = await computeExtendedIndicators(bars);
 
     if (!pendingDecisions.has(cacheKey)) {
       pendingDecisions.add(cacheKey);
-      runAIDecisionInBackground(symbol, cacheKey, quote, indicators);
+      runAIDecisionInBackground(symbol, cacheKey, quote, indicators, extended);
     }
 
-    res.json({ ...buildFallbackDecision(symbol, quote, indicators), isMock: quote.isMock || historyResult.isMock });
+    res.json({ ...buildFallbackDecision(symbol, quote, indicators, extended), isMock: quote.isMock || historyResult.isMock });
   } catch (err) {
     logger.error({ symbol, err }, "Autopilot decision error");
     res.status(500).json({ error: "Failed to generate AI decision" });

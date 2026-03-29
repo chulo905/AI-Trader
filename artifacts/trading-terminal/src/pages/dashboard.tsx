@@ -1,4 +1,5 @@
 import { useGetMarketMovers, useGetPositions, useGetPortfolio, useGetTradeStats } from "@workspace/api-client-react";
+import { resolvePositions } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, StatCard, PriceChange, PageTransition, Skeleton, ErrorPanel, Btn, SignalBadge } from "@/components/terminal-ui";
 import { formatCurrency, formatPrice } from "@/lib/utils";
 import { useAppState } from "@/hooks/use-app-state";
@@ -29,7 +30,7 @@ export default function Dashboard() {
   const { setSelectedSymbol } = useAppState();
   const { data: movers, isLoading: loadingMovers, error: moversError } = useGetMarketMovers({ query: { retry: false } });
   const { data: positionsData } = useGetPositions({ query: { retry: false } });
-  const positions = Array.isArray((positionsData as any)?.positions) ? (positionsData as any).positions : Array.isArray(positionsData) ? positionsData : [];
+  const positions = resolvePositions(positionsData);
   const { data: portfolio } = useGetPortfolio({ query: { retry: false } });
   const { data: stats } = useGetTradeStats({ query: { retry: false } });
 

@@ -1,7 +1,7 @@
 import { openai } from "./openai-client";
 import { getHistory, getSingleQuote } from "./tradersage";
 import { computeIndicators, interpretIndicators, type OHLCVBar } from "./technicals";
-import { computeExtendedIndicators, interpretExtendedIndicators } from "./indicators-extended";
+import { computeExtendedIndicators, interpretExtendedIndicators, type ExtendedIndicators } from "./indicators-extended";
 import { analyzePatterns, interpretPatterns } from "./patterns";
 import { logger } from "./logger";
 
@@ -25,7 +25,7 @@ export async function generateAnalysis(symbol: string, timeframe: string) {
     time: h.time, open: h.open, high: h.high, low: h.low, close: h.close, volume: h.volume,
   }));
   const indicators = computeIndicators(bars);
-  const extended = computeExtendedIndicators(bars);
+  const extended = await computeExtendedIndicators(bars);
 
   const patterns = analyzePatterns(bars, indicators.rsiSeries);
 
@@ -43,7 +43,7 @@ async function runLLMInBackground(
   cacheKey: string,
   quote: { price: number; changePercent: number },
   indicators: ReturnType<typeof computeIndicators>,
-  extended: ReturnType<typeof computeExtendedIndicators>,
+  extended: ExtendedIndicators,
   _bars: OHLCVBar[],
   patterns: ReturnType<typeof analyzePatterns>
 ) {
@@ -229,7 +229,7 @@ function buildFallbackSignals(indicators: ReturnType<typeof computeIndicators>, 
   ];
 }
 
-function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>, extended: ReturnType<typeof computeExtendedIndicators>, patterns?: ReturnType<typeof analyzePatterns>) {
+function buildFallbackAnalysis(symbol: string, timeframe: string, quote: { price: number; changePercent: number }, indicators: ReturnType<typeof computeIndicators>, extended: ExtendedIndicators, patterns?: ReturnType<typeof analyzePatterns>) {
   const rsi = indicators.rsi14;
 
   let biasBullish = 0;

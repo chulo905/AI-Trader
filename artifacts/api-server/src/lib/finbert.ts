@@ -11,16 +11,20 @@ export interface FinBertResult {
 const finbertCache = new Map<string, { data: FinBertResult[]; expiresAt: number }>();
 const FINBERT_CACHE_TTL = 15 * 60 * 1000;
 
-const HF_MODEL = "ProsusAI/finbert";
-const HF_INFERENCE_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+const HF_MODELS = [
+  "nickmuchi/financial-roberta-large-sentiment-analysis",
+  "mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis",
+  "ProsusAI/finbert",
+];
 
-async function callHuggingFace(inputs: string[]): Promise<FinBertSentiment[]> {
+async function callHuggingFaceModel(model: string, inputs: string[]): Promise<FinBertSentiment[]> {
   const token = process.env["HUGGINGFACE_API_TOKEN"];
   if (!token) {
     throw new Error("HUGGINGFACE_API_TOKEN is not set");
   }
 
-  const response = await fetch(HF_INFERENCE_URL, {
+  const url = `https://router.huggingface.co/hf-inference/models/${model}`;
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -31,16 +35,36 @@ async function callHuggingFace(inputs: string[]): Promise<FinBertSentiment[]> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Hugging Face API error ${response.status}: ${text}`);
+    throw new Error(`HuggingFace API error ${response.status} (${model}): ${text}`);
   }
 
   const data = (await response.json()) as Array<Array<{ label: string; score: number }>>;
 
   return data.map((labelScores) => {
     const best = labelScores.reduce((a, b) => (a.score > b.score ? a : b));
-    const label = best.label.toLowerCase() as "positive" | "negative" | "neutral";
+    const rawLabel = best.label.toLowerCase();
+    const label: FinBertSentiment["label"] =
+      rawLabel === "positive" || rawLabel === "label_2" || rawLabel === "pos"
+        ? "positive"
+        : rawLabel === "negative" || rawLabel === "label_0" || rawLabel === "neg"
+        ? "negative"
+        : "neutral";
     return { label, score: best.score };
   });
+}
+
+async function callHuggingFace(inputs: string[]): Promise<FinBertSentiment[]> {
+  let lastError: unknown;
+
+  for (const model of HF_MODELS) {
+    try {
+      return await callHuggingFaceModel(model, inputs);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError;
 }
 
 export async function runFinBert(texts: string[], cacheKey: string): Promise<FinBertResult[]> {
