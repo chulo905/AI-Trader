@@ -161,7 +161,7 @@ Return ONLY valid JSON:
 }`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       max_completion_tokens: 800,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -208,7 +208,7 @@ Return ONLY valid JSON:
 }`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       max_completion_tokens: 1000,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },

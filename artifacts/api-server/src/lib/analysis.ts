@@ -147,11 +147,11 @@ Return ONLY a valid JSON object:
   "bearCase": "<2-3 sentences: the strongest technical argument for a move lower. What is the key resistance wall or deteriorating signal that threatens bulls?>",
   "invalidationLevel": <number: exact price that, if broken, proves the bullish case wrong. For bearish bias, the level that would flip the analysis. Use nearest support/resistance.>,
   "tradePlan": {
-    "entry": <number: ideal entry price — current price or pullback level>,
-    "stop": <number: stop loss — 1.5x ATR below entry for longs>,
-    "target1": <number: first target — nearest resistance or 2x ATR above entry>,
-    "target2": <number: second target — next resistance or 3x ATR above entry>,
-    "rrRatio": <decimal: (target1 - entry) / (entry - stop), rounded to 1 decimal>
+    "entry": <number: ideal entry price — current price or nearby level>,
+    "stop": <number: if bullish bias → 1.5x ATR BELOW entry (stop < entry). If bearish bias → 1.5x ATR ABOVE entry (stop > entry). Never put stop on same side as target.>,
+    "target1": <number: if bullish → first resistance ABOVE entry. If bearish → first support BELOW entry. Must be on opposite side of entry from stop.>,
+    "target2": <number: if bullish → next resistance further ABOVE entry. If bearish → next support further BELOW entry.>,
+    "rrRatio": <decimal: absolute value of (target1 - entry) / (entry - stop), always positive, rounded to 1 decimal>
   },
   "keyLevels": [
     { "type": "resistance", "price": <number from resistance clusters or R1/R2>, "description": "<why this level matters>" },
@@ -197,7 +197,27 @@ Paper trading only — not financial advice. Cite actual numbers from the data.`
       bullCase: parsed.bullCase ?? null,
       bearCase: parsed.bearCase ?? null,
       invalidationLevel: parsed.invalidationLevel ?? null,
-      tradePlan: parsed.tradePlan ?? null,
+      tradePlan: (() => {
+        const tp = parsed.tradePlan;
+        if (!tp || !tp.entry) return null;
+        const isBearish = (parsed.bias ?? "neutral") === "bearish";
+        const atr = indicators.atr14 ?? tp.entry * 0.02;
+        // Auto-correct stop direction if GPT got it wrong
+        let stop = tp.stop;
+        if (isBearish && stop < tp.entry) stop = Math.round((tp.entry + atr * 1.5) * 100) / 100;
+        if (!isBearish && stop > tp.entry) stop = Math.round((tp.entry - atr * 1.5) * 100) / 100;
+        // Auto-correct targets if on wrong side
+        let t1 = tp.target1;
+        let t2 = tp.target2;
+        if (isBearish && t1 > tp.entry) t1 = Math.round((tp.entry - atr * 2) * 100) / 100;
+        if (!isBearish && t1 < tp.entry) t1 = Math.round((tp.entry + atr * 2) * 100) / 100;
+        if (isBearish && t2 > tp.entry) t2 = Math.round((tp.entry - atr * 3.5) * 100) / 100;
+        if (!isBearish && t2 < tp.entry) t2 = Math.round((tp.entry + atr * 3.5) * 100) / 100;
+        const risk = Math.abs(tp.entry - stop);
+        const reward = Math.abs(t1 - tp.entry);
+        const rrRatio = risk > 0 ? Math.round((reward / risk) * 10) / 10 : tp.rrRatio;
+        return { ...tp, stop, target1: t1, target2: t2, rrRatio };
+      })(),
       keyLevels: parsed.keyLevels ?? buildFallbackLevels(indicators, quote.price, patterns),
       signals: parsed.signals ?? buildFallbackSignals(indicators, quote.changePercent, patterns),
       indicators,
