@@ -7,6 +7,7 @@ import { Compass, TrendingUp, TrendingDown, Zap, Plus, Trash2, Star, Lightbulb, 
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useTickerPrice } from "@/hooks/use-ticker-price";
 
 type Tab = "Movers" | "Watchlist" | "AI Ideas";
 
@@ -147,24 +148,12 @@ export default function DiscoverPage() {
                 ) : (
                   <Table headers={["Symbol", "Price", "Change", "Volume", "AI Signal", ""]}>
                     {quotes?.map(q => (
-                      <tr key={q.symbol} className="hover:bg-muted/30 cursor-pointer group" onClick={() => setSelectedSymbol(q.symbol)}>
-                        <td className="px-4 py-3 first:pl-5">
-                          <span className="font-mono font-bold">{q.symbol}</span>
-                          <p className="text-xs text-muted-foreground">{q.name}</p>
-                        </td>
-                        <td className="px-4 py-3 font-mono">{formatPrice(q.price)}</td>
-                        <td className="px-4 py-3"><PriceChange value={q.changePercent} /></td>
-                        <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{formatNumber(q.volume)}</td>
-                        <td className="px-4 py-3"><SignalBadge signal={q.signal} /></td>
-                        <td className="px-4 py-3 last:pr-5 text-right">
-                          <button
-                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-bearish transition-all"
-                            onClick={e => { e.stopPropagation(); if (activeList) removeMutation.mutate({ id: activeList.id, symbol: q.symbol }); }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
+                      <DiscoverWatchRow
+                        key={q.symbol}
+                        q={q}
+                        onSelect={() => setSelectedSymbol(q.symbol)}
+                        onRemove={() => { if (activeList) removeMutation.mutate({ id: activeList.id, symbol: q.symbol }); }}
+                      />
                     ))}
                   </Table>
                 )}
@@ -226,6 +215,48 @@ export default function DiscoverPage() {
         </div>
       )}
     </PageTransition>
+  );
+}
+
+interface DiscoverQuote {
+  symbol: string;
+  name?: string | null;
+  price: number;
+  changePercent: number;
+  volume?: number | null;
+  signal?: string | null;
+}
+
+function DiscoverWatchRow({ q, onSelect, onRemove }: { q: DiscoverQuote; onSelect: () => void; onRemove: () => void }) {
+  const { price: livePrice, changePercent: liveChangePercent, flashDirection } = useTickerPrice(q.symbol);
+  const displayPrice = livePrice ?? q.price;
+  const displayChange = liveChangePercent ?? q.changePercent;
+
+  return (
+    <tr className="hover:bg-muted/30 cursor-pointer group" onClick={onSelect}>
+      <td className="px-4 py-3 first:pl-5">
+        <span className="font-mono font-bold">{q.symbol}</span>
+        <p className="text-xs text-muted-foreground">{q.name}</p>
+      </td>
+      <td className={cn(
+        "px-4 py-3 font-mono tabular-nums transition-colors duration-300",
+        flashDirection === "up" && "text-bullish",
+        flashDirection === "down" && "text-bearish"
+      )}>
+        {formatPrice(displayPrice)}
+      </td>
+      <td className="px-4 py-3"><PriceChange value={displayChange} /></td>
+      <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{q.volume !== undefined ? formatNumber(q.volume) : "—"}</td>
+      <td className="px-4 py-3"><SignalBadge signal={q.signal} /></td>
+      <td className="px-4 py-3 last:pr-5 text-right">
+        <button
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-bearish transition-all"
+          onClick={e => { e.stopPropagation(); onRemove(); }}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </td>
+    </tr>
   );
 }
 

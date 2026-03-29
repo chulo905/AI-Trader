@@ -4,6 +4,8 @@ import { usePaperTradeForm } from "@/hooks/use-paper-trade-form";
 import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, TerminalTable, TerminalButton, TerminalInput, TerminalLabel, PriceChange } from "@/components/terminal-ui";
 import { formatCurrency, formatPrice } from "@/lib/utils";
 import { ArrowRightLeft } from "lucide-react";
+import { useTickerPrice } from "@/hooks/use-ticker-price";
+import { cn } from "@/lib/utils";
 
 export default function PaperTradingPage() {
   const { selectedSymbol, setSelectedSymbol } = useAppState();
@@ -28,6 +30,8 @@ export default function PaperTradingPage() {
     isSubmitting,
     isClosing,
   } = usePaperTradeForm(selectedSymbol);
+
+  const { price: liveSelectedPrice, flashDirection: selectedFlash } = useTickerPrice(selectedSymbol);
 
   return (
     <PageTransition>
@@ -60,9 +64,14 @@ export default function PaperTradingPage() {
                     className="font-bold text-lg uppercase"
                     required
                   />
-                  {quote && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">
-                      Current: {formatPrice(quote.price)}
+                  {(liveSelectedPrice !== null || quote) && (
+                    <div className={cn(
+                      "absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono transition-colors duration-300",
+                      selectedFlash === "up" && "text-bullish",
+                      selectedFlash === "down" && "text-bearish",
+                      !selectedFlash && "text-muted-foreground"
+                    )}>
+                      {formatPrice(liveSelectedPrice ?? quote?.price ?? 0)}
                     </div>
                   )}
                 </div>
@@ -116,33 +125,12 @@ export default function PaperTradingPage() {
             {error ? <ErrorPanel error={error} /> : isLoading ? <TerminalSkeleton className="h-[400px]" /> : (
               <TerminalTable headers={["Symbol", "Side", "Shares", "Avg Cost", "Current", "P&L", "Action"]}>
                 {positions?.map(pos => (
-                  <tr key={pos.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-bold font-mono text-base">{pos.symbol}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-bold uppercase ${pos.side === "long" ? "text-bullish bg-bullish/10 px-2 py-1 rounded" : "text-bearish bg-bearish/10 px-2 py-1 rounded"}`}>{pos.side}</span>
-                    </td>
-                    <td className="px-4 py-3 font-mono">{pos.shares}</td>
-                    <td className="px-4 py-3 font-mono">{formatPrice(pos.entryPrice)}</td>
-                    <td className="px-4 py-3 font-mono">{formatPrice(pos.currentPrice)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex flex-col items-end">
-                        <span className={`font-mono font-bold ${pos.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish"}`}>
-                          {formatCurrency(pos.unrealizedPnl)}
-                        </span>
-                        <PriceChange value={pos.unrealizedPnlPercent} className="text-xs" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <TerminalButton
-                        size="sm"
-                        variant="outline"
-                        onClick={() => closePosition(pos.id, pos.currentPrice)}
-                        disabled={isClosing}
-                      >
-                        Close
-                      </TerminalButton>
-                    </td>
-                  </tr>
+                  <LivePositionRow
+                    key={pos.id}
+                    pos={pos}
+                    onClose={() => closePosition(pos.id, pos.currentPrice)}
+                    isClosing={isClosing}
+                  />
                 ))}
                 {!positions?.length && (
                   <tr>
@@ -157,5 +145,57 @@ export default function PaperTradingPage() {
         </div>
       </div>
     </PageTransition>
+  );
+}
+
+interface PositionData {
+  id: number;
+  symbol: string;
+  side: string;
+  shares: number;
+  entryPrice: number;
+  currentPrice: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+}
+
+function LivePositionRow({ pos, onClose, isClosing }: { pos: PositionData; onClose: () => void; isClosing: boolean }) {
+  const { price: livePrice, flashDirection } = useTickerPrice(pos.symbol);
+  const displayPrice = livePrice ?? pos.currentPrice;
+
+  return (
+    <tr className="hover:bg-muted/30">
+      <td className="px-4 py-3 font-bold font-mono text-base">{pos.symbol}</td>
+      <td className="px-4 py-3">
+        <span className={`text-xs font-bold uppercase ${pos.side === "long" ? "text-bullish bg-bullish/10 px-2 py-1 rounded" : "text-bearish bg-bearish/10 px-2 py-1 rounded"}`}>{pos.side}</span>
+      </td>
+      <td className="px-4 py-3 font-mono">{pos.shares}</td>
+      <td className="px-4 py-3 font-mono">{formatPrice(pos.entryPrice)}</td>
+      <td className={cn(
+        "px-4 py-3 font-mono tabular-nums transition-colors duration-300",
+        flashDirection === "up" && "text-bullish",
+        flashDirection === "down" && "text-bearish"
+      )}>
+        {formatPrice(displayPrice)}
+      </td>
+      <td className="px-4 py-3 text-right">
+        <div className="flex flex-col items-end">
+          <span className={`font-mono font-bold ${pos.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish"}`}>
+            {formatCurrency(pos.unrealizedPnl)}
+          </span>
+          <PriceChange value={pos.unrealizedPnlPercent} className="text-xs" />
+        </div>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <TerminalButton
+          size="sm"
+          variant="outline"
+          onClick={onClose}
+          disabled={isClosing}
+        >
+          Close
+        </TerminalButton>
+      </td>
+    </tr>
   );
 }

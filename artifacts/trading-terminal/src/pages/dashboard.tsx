@@ -3,8 +3,9 @@ import { Card, CardHeader, CardTitle, CardContent, StatCard, PriceChange, PageTr
 import { formatCurrency, formatPrice } from "@/lib/utils";
 import { useAppState } from "@/hooks/use-app-state";
 import { Link } from "wouter";
-import { Sparkles, TrendingUp, TrendingDown, Activity, ArrowRight, ChevronRight } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, Activity, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTickerPrice } from "@/hooks/use-ticker-price";
 
 function DataDelayBadge({ dataDelay }: { dataDelay?: string }) {
   if (!dataDelay || dataDelay === "realtime") return null;
@@ -140,27 +141,11 @@ export default function Dashboard() {
             ) : (
               <div className="divide-y divide-border/50">
                 {positions.slice(0, 5).map(pos => (
-                  <div
+                  <PositionRow
                     key={pos.id}
-                    className="flex items-center justify-between py-3 px-5 hover:bg-muted/40 cursor-pointer transition-colors"
+                    pos={pos}
                     onClick={() => setSelectedSymbol(pos.symbol)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 border border-border flex items-center justify-center rounded-sm">
-                        <span className="text-[10px] font-bold font-mono">{pos.symbol.slice(0, 2)}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold font-mono">{pos.symbol}</p>
-                        <p className="text-[11px] text-muted-foreground">{pos.shares} shares</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={cn("text-sm font-bold font-mono tabular-nums", pos.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish")}>
-                        {pos.unrealizedPnl >= 0 ? "+" : ""}{formatCurrency(pos.unrealizedPnl)}
-                      </p>
-                      <PriceChange value={pos.unrealizedPnlPercent} className="text-xs" />
-                    </div>
-                  </div>
+                  />
                 ))}
               </div>
             )}
@@ -198,13 +183,60 @@ export default function Dashboard() {
   );
 }
 
+function PositionRow({ pos, onClick }: { pos: { id: number; symbol: string; shares: number; unrealizedPnl: number; unrealizedPnlPercent: number }; onClick: () => void }) {
+  const { price, flashDirection } = useTickerPrice(pos.symbol);
+
+  return (
+    <Link href="/portfolio" onClick={onClick}>
+      <div
+        className="flex items-center justify-between py-3 px-5 hover:bg-muted/40 cursor-pointer transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 border border-border flex items-center justify-center rounded-sm">
+            <span className="text-[10px] font-bold font-mono">{pos.symbol.slice(0, 2)}</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold font-mono">{pos.symbol}</p>
+            <p className="text-[11px] text-muted-foreground">{pos.shares} shares</p>
+          </div>
+        </div>
+        <div className="text-right">
+          {price !== null && (
+            <p className={cn(
+              "text-xs font-mono tabular-nums transition-colors duration-300 mb-0.5",
+              flashDirection === "up" && "text-bullish",
+              flashDirection === "down" && "text-bearish",
+              !flashDirection && "text-muted-foreground"
+            )}>
+              {formatPrice(price)}
+            </p>
+          )}
+          <p className={cn("text-sm font-bold font-mono tabular-nums", pos.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish")}>
+            {pos.unrealizedPnl >= 0 ? "+" : ""}{formatCurrency(pos.unrealizedPnl)}
+          </p>
+          <PriceChange value={pos.unrealizedPnlPercent} className="text-xs" />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function SymbolRow({ symbol, price, change, onClick }: { symbol: string; price: number; change: number; onClick: () => void }) {
+  const { price: livePrice, flashDirection } = useTickerPrice(symbol);
+
   return (
     <Link href="/autopilot" onClick={onClick}>
       <div className="flex items-center justify-between py-2.5 px-5 hover:bg-muted/40 cursor-pointer transition-colors">
         <span className="font-mono font-bold text-xs">{symbol}</span>
         <div className="text-right">
-          <p className="text-[11px] font-mono text-muted-foreground tabular-nums">{formatPrice(price)}</p>
+          <p className={cn(
+            "text-[11px] font-mono tabular-nums transition-colors duration-300",
+            flashDirection === "up" && "text-bullish",
+            flashDirection === "down" && "text-bearish",
+            !flashDirection && "text-muted-foreground"
+          )}>
+            {formatPrice(livePrice ?? price)}
+          </p>
           <PriceChange value={change} className="text-[11px]" />
         </div>
       </div>

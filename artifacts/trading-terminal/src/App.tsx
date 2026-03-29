@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WebSocketProvider } from "@/context/websocket-context";
 
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
@@ -64,9 +65,11 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <ErrorBoundary label="Router">
-              <Router />
-            </ErrorBoundary>
+            <WebSocketProvider>
+              <ErrorBoundary label="Router">
+                <Router />
+              </ErrorBoundary>
+            </WebSocketProvider>
           </WouterRouter>
           <Toaster />
         </TooltipProvider>

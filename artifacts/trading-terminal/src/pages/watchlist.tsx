@@ -5,6 +5,8 @@ import { formatPrice, formatNumber } from "@/lib/utils";
 import { useAppState } from "@/hooks/use-app-state";
 import { Trash2, Plus, List, PlusCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTickerPrice } from "@/hooks/use-ticker-price";
+import { cn } from "@/lib/utils";
 
 export default function WatchlistPage() {
   const { selectedSymbol, setSelectedSymbol } = useAppState();
@@ -16,7 +18,7 @@ export default function WatchlistPage() {
   
   const { data: quotes, isLoading: loadingQuotes } = useGetMarketQuotes(
     { symbols: activeList?.symbols?.join(',') || '' },
-    { query: { enabled: !!activeList?.symbols?.length, refetchInterval: 10000 } }
+    { query: { enabled: !!activeList?.symbols?.length, refetchInterval: 30000 } }
   );
 
   const createMutation = useCreateWatchlist({
@@ -157,35 +159,12 @@ export default function WatchlistPage() {
             ) : (
               <TerminalTable headers={["Symbol", "Price", "Change", "Volume", "AI Signal", ""]}>
                 {quotes?.map(q => (
-                  <tr key={q.symbol} className="hover:bg-muted/40 cursor-pointer group" onClick={() => setSelectedSymbol(q.symbol)}>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-bold font-mono text-base">{q.symbol}</span>
-                        <span className="text-xs text-muted-foreground">{q.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-base">{formatPrice(q.price)}</td>
-                    <td className="px-4 py-4">
-                      <PriceChange value={q.changePercent} />
-                    </td>
-                    <td className="px-4 py-4 font-mono text-xs">{formatNumber(q.volume)}</td>
-                    <td className="px-4 py-4">
-                      <SignalBadge signal={q.signal} />
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <TerminalButton 
-                        variant="ghost" 
-                        size="sm" 
-                        className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if(activeList) removeSymbolMutation.mutate({ id: activeList.id, symbol: q.symbol });
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </TerminalButton>
-                    </td>
-                  </tr>
+                  <WatchlistRow
+                    key={q.symbol}
+                    q={q}
+                    onSelect={() => setSelectedSymbol(q.symbol)}
+                    onRemove={() => { if(activeList) removeSymbolMutation.mutate({ id: activeList.id, symbol: q.symbol }); }}
+                  />
                 ))}
               </TerminalTable>
             )}
@@ -193,5 +172,59 @@ export default function WatchlistPage() {
         </div>
       </div>
     </PageTransition>
+  );
+}
+
+interface QuoteData {
+  symbol: string;
+  name?: string | null;
+  price: number;
+  changePercent: number;
+  volume?: number | null;
+  signal?: string | null;
+}
+
+function WatchlistRow({ q, onSelect, onRemove }: { q: QuoteData; onSelect: () => void; onRemove: () => void }) {
+  const { price: livePrice, changePercent: liveChangePercent, flashDirection } = useTickerPrice(q.symbol);
+
+  const displayPrice = livePrice ?? q.price;
+  const displayChange = liveChangePercent ?? q.changePercent;
+
+  return (
+    <tr className="hover:bg-muted/40 cursor-pointer group" onClick={onSelect}>
+      <td className="px-4 py-4">
+        <div className="flex flex-col">
+          <span className="font-bold font-mono text-base">{q.symbol}</span>
+          <span className="text-xs text-muted-foreground">{q.name}</span>
+        </div>
+      </td>
+      <td className={cn(
+        "px-4 py-4 font-mono text-base tabular-nums transition-colors duration-300",
+        flashDirection === "up" && "text-bullish",
+        flashDirection === "down" && "text-bearish"
+      )}>
+        {formatPrice(displayPrice)}
+      </td>
+      <td className="px-4 py-4">
+        <PriceChange value={displayChange} />
+      </td>
+      <td className="px-4 py-4 font-mono text-xs">{q.volume !== undefined ? formatNumber(q.volume) : "—"}</td>
+      <td className="px-4 py-4">
+        <SignalBadge signal={q.signal} />
+      </td>
+      <td className="px-4 py-4 text-right">
+        <TerminalButton 
+          variant="ghost" 
+          size="sm" 
+          className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <Trash2 className="w-4 h-4" />
+        </TerminalButton>
+      </td>
+    </tr>
   );
 }
