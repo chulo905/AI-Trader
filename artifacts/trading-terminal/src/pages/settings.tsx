@@ -29,11 +29,11 @@ export default function SettingsPage() {
               <input
                 value={selectedSymbol}
                 onChange={e => setSelectedSymbol(e.target.value.toUpperCase())}
-                className="w-28 h-8 rounded-lg border border-border bg-muted/50 px-3 text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary/50 uppercase"
+                className="w-28 h-8 rounded-sm border border-border bg-muted/50 px-3 text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary/50 uppercase"
               />
             </Row>
             <Row label="AI Cache Duration" desc="AI decisions are reused for 3 minutes to save time">
-              <span className="text-xs bg-bullish/10 text-bullish border border-bullish/20 px-2 py-1 rounded-lg font-medium">3 min cache</span>
+              <span className="text-xs bg-bullish/10 text-bullish border border-bullish/20 px-2 py-1 rounded-sm font-medium">3 min cache</span>
             </Row>
           </CardContent>
         </Card>
@@ -50,7 +50,7 @@ export default function SettingsPage() {
               <span className="font-mono font-bold text-sm">$100,000</span>
             </Row>
             <Row label="Trading Mode" desc="No real money is ever used on this platform">
-              <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-lg font-medium">Paper Only ✓</span>
+              <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-sm font-medium">Paper Only ✓</span>
             </Row>
           </CardContent>
         </Card>

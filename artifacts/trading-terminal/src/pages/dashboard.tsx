@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent, StatCard, PriceChange, PageTr
 import { formatCurrency, formatPrice } from "@/lib/utils";
 import { useAppState } from "@/hooks/use-app-state";
 import { Link } from "wouter";
-import { Sparkles, TrendingUp, TrendingDown, Zap, Activity, ArrowRight } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, Activity, ArrowRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_SYMBOLS = ["AAPL", "NVDA", "TSLA", "MSFT", "META", "AMD", "SPY", "BTC"];
@@ -17,13 +17,12 @@ export default function Dashboard() {
 
   return (
     <PageTransition>
-      {/* Hero: Portfolio Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Portfolio Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Account Value"
           value={formatCurrency(portfolio?.equity ?? 100000)}
           sub="Starting: $100,000"
-          valueClass="text-foreground"
         />
         <StatCard
           label="Today's Gain/Loss"
@@ -39,51 +38,62 @@ export default function Dashboard() {
           label="Win Rate"
           value={stats ? `${stats.winRate}%` : "—"}
           sub={stats ? `${stats.winCount}W / ${stats.lossCount}L` : "No trades yet"}
-          valueClass="text-primary"
         />
       </div>
 
       {/* AI Pilot CTA */}
       <Link href="/autopilot">
-        <div className="cursor-pointer group flex items-center justify-between p-5 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/8 to-primary/3 hover:border-primary/40 hover:from-primary/12 transition-all">
+        <div className="cursor-pointer group flex items-center justify-between p-5 border border-border hover:border-foreground/25 bg-card hover:bg-muted/60 transition-all rounded-sm">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 border border-border flex items-center justify-center rounded-sm">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold text-base">AI Pilot — Let AI Trade For You</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Pick any stock or crypto. The AI analyzes everything and executes the best trade automatically.</p>
+              <p className="font-bold text-sm tracking-tight">AI Pilot — Let AI Trade For You</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Pick any stock or crypto. The AI analyzes everything and decides BUY/SELL/HOLD automatically.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-primary font-semibold text-sm shrink-0">
-            <span className="hidden sm:block">Get started</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center gap-1.5 font-semibold text-xs text-muted-foreground shrink-0 group-hover:text-foreground transition-colors">
+            <span className="hidden sm:block uppercase tracking-wider">Get started</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Market Movers */}
         <Card>
           <CardHeader>
-            <CardTitle>Market Movers Today</CardTitle>
-            <Link href="/discover" className="text-xs text-primary hover:underline">See all</Link>
+            <CardTitle>Market Movers</CardTitle>
+            <Link href="/discover" className="text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors">See all →</Link>
           </CardHeader>
-          <CardContent>
-            {moversError ? <ErrorPanel error={moversError} /> : loadingMovers ? <Skeleton className="h-48" /> : (
-              <div className="flex flex-col gap-1">
-                <div className="grid grid-cols-2 gap-1 mb-2">
-                  <span className="text-xs text-bullish font-medium flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Top Gainers</span>
-                  <span className="text-xs text-bearish font-medium flex items-center gap-1"><TrendingDown className="w-3 h-3" /> Top Losers</span>
+          <CardContent className="p-0">
+            {moversError ? (
+              <div className="p-5"><ErrorPanel error={moversError} /></div>
+            ) : loadingMovers ? (
+              <div className="p-5"><Skeleton className="h-40" /></div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
+                  <div className="px-5 py-2.5 text-[10px] font-bold text-bullish uppercase tracking-widest flex items-center gap-1.5">
+                    <TrendingUp className="w-3 h-3" /> Gainers
+                  </div>
+                  <div className="px-5 py-2.5 text-[10px] font-bold text-bearish uppercase tracking-widest flex items-center gap-1.5">
+                    <TrendingDown className="w-3 h-3" /> Losers
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {movers?.gainers.slice(0, 4).map(q => (
-                    <SymbolRow key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} onClick={() => setSelectedSymbol(q.symbol)} />
-                  ))}
-                  {movers?.losers.slice(0, 4).map(q => (
-                    <SymbolRow key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} onClick={() => setSelectedSymbol(q.symbol)} />
-                  ))}
+                <div className="grid grid-cols-2 divide-x divide-border">
+                  <div className="divide-y divide-border/50">
+                    {movers?.gainers.slice(0, 4).map(q => (
+                      <SymbolRow key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} onClick={() => setSelectedSymbol(q.symbol)} />
+                    ))}
+                  </div>
+                  <div className="divide-y divide-border/50">
+                    {movers?.losers.slice(0, 4).map(q => (
+                      <SymbolRow key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} onClick={() => setSelectedSymbol(q.symbol)} />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -93,35 +103,39 @@ export default function Dashboard() {
         {/* Open Positions */}
         <Card>
           <CardHeader>
-            <CardTitle>Your Open Positions</CardTitle>
-            <Link href="/portfolio" className="text-xs text-primary hover:underline">Manage</Link>
+            <CardTitle>Open Positions</CardTitle>
+            <Link href="/portfolio" className="text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors">Manage →</Link>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {!positions?.length ? (
-              <div className="py-8 text-center">
-                <Activity className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No open positions yet.</p>
+              <div className="py-10 text-center px-5">
+                <Activity className="w-7 h-7 text-muted-foreground/20 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground mb-3">No open positions yet.</p>
                 <Link href="/autopilot">
-                  <Btn variant="primary" size="sm" className="mt-3">
-                    <Sparkles className="w-3.5 h-3.5" /> Start with AI Pilot
+                  <Btn variant="primary" size="sm">
+                    <Sparkles className="w-3 h-3" /> Start with AI Pilot
                   </Btn>
                 </Link>
               </div>
             ) : (
-              <div className="flex flex-col gap-1">
+              <div className="divide-y divide-border/50">
                 {positions.slice(0, 5).map(pos => (
-                  <div key={pos.id} className="flex items-center justify-between py-2 px-1 rounded-xl hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => setSelectedSymbol(pos.symbol)}>
+                  <div
+                    key={pos.id}
+                    className="flex items-center justify-between py-3 px-5 hover:bg-muted/40 cursor-pointer transition-colors"
+                    onClick={() => setSelectedSymbol(pos.symbol)}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center">
-                        <span className="text-xs font-bold">{pos.symbol.slice(0, 2)}</span>
+                      <div className="w-7 h-7 border border-border flex items-center justify-center rounded-sm">
+                        <span className="text-[10px] font-bold font-mono">{pos.symbol.slice(0, 2)}</span>
                       </div>
                       <div>
-                        <p className="text-sm font-semibold">{pos.symbol}</p>
-                        <p className="text-xs text-muted-foreground">{pos.shares} shares</p>
+                        <p className="text-sm font-bold font-mono">{pos.symbol}</p>
+                        <p className="text-[11px] text-muted-foreground">{pos.shares} shares</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={cn("text-sm font-semibold font-mono", pos.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish")}>
+                      <p className={cn("text-sm font-bold font-mono tabular-nums", pos.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish")}>
                         {pos.unrealizedPnl >= 0 ? "+" : ""}{formatCurrency(pos.unrealizedPnl)}
                       </p>
                       <PriceChange value={pos.unrealizedPnlPercent} className="text-xs" />
@@ -134,24 +148,24 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Quick AI Analysis shortcuts */}
+      {/* Quick AI Scan */}
       <Card>
         <CardHeader>
           <CardTitle>Quick AI Scan</CardTitle>
-          <span className="text-xs text-muted-foreground">Click any symbol to run AI Pilot</span>
+          <span className="text-[10px] text-muted-foreground">Click any symbol to run AI Pilot</span>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3">
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {QUICK_SYMBOLS.map(sym => {
               const mover = [...(movers?.gainers ?? []), ...(movers?.losers ?? []), ...(movers?.mostActive ?? [])].find(m => m.symbol === sym);
               return (
                 <Link key={sym} href="/autopilot" onClick={() => setSelectedSymbol(sym)}>
-                  <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-muted/60 cursor-pointer transition-all group">
-                    <span className="font-mono font-bold text-sm group-hover:text-primary transition-colors">{sym}</span>
+                  <div className="flex flex-col items-center gap-1.5 p-3 border border-border hover:border-foreground/25 hover:bg-muted cursor-pointer transition-all group rounded-sm">
+                    <span className="font-mono font-bold text-xs group-hover:text-foreground transition-colors">{sym}</span>
                     {mover ? (
-                      <PriceChange value={mover.changePercent} className="text-xs" />
+                      <PriceChange value={mover.changePercent} className="text-[11px]" />
                     ) : (
-                      <Sparkles className="w-3 h-3 text-muted-foreground/40" />
+                      <Sparkles className="w-3 h-3 text-muted-foreground/30" />
                     )}
                   </div>
                 </Link>
@@ -167,11 +181,11 @@ export default function Dashboard() {
 function SymbolRow({ symbol, price, change, onClick }: { symbol: string; price: number; change: number; onClick: () => void }) {
   return (
     <Link href="/autopilot" onClick={onClick}>
-      <div className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-muted/40 cursor-pointer transition-colors group">
-        <span className="font-mono font-semibold text-sm group-hover:text-primary transition-colors">{symbol}</span>
+      <div className="flex items-center justify-between py-2.5 px-5 hover:bg-muted/40 cursor-pointer transition-colors">
+        <span className="font-mono font-bold text-xs">{symbol}</span>
         <div className="text-right">
-          <p className="text-xs font-mono text-muted-foreground">{formatPrice(price)}</p>
-          <PriceChange value={change} className="text-xs" />
+          <p className="text-[11px] font-mono text-muted-foreground tabular-nums">{formatPrice(price)}</p>
+          <PriceChange value={change} className="text-[11px]" />
         </div>
       </div>
     </Link>

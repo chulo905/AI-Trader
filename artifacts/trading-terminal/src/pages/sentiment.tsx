@@ -84,7 +84,7 @@ export default function SentimentPage() {
           </div>
           <p className="text-sm text-muted-foreground">Market sentiment and news analysis for <span className="font-mono font-semibold text-foreground">{selectedSymbol}</span></p>
         </div>
-        <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-xl hover:bg-muted">
+        <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-sm hover:bg-muted">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
@@ -109,11 +109,11 @@ export default function SentimentPage() {
               <CardHeader><CardTitle><Users className="w-4 h-4" /> Social & Analyst</CardTitle></CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-3">
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="p-3 rounded-sm bg-muted/30 border border-border/40">
                     <p className="text-xs text-muted-foreground mb-1">Social Buzz</p>
                     <p className="text-sm">{data.socialBuzz}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="p-3 rounded-sm bg-muted/30 border border-border/40">
                     <p className="text-xs text-muted-foreground mb-1">Analyst Consensus</p>
                     <p className="text-sm">{data.analystConsensus}</p>
                   </div>
@@ -146,7 +146,7 @@ export default function SentimentPage() {
               <CardContent>
                 <div className="flex flex-col gap-3">
                   {(data?.newsHeadlines ?? []).map((item, i) => (
-                    <div key={i} className={cn("p-4 rounded-xl border", HEADLINE_BG[item.sentiment])}>
+                    <div key={i} className={cn("p-4 rounded-sm border", HEADLINE_BG[item.sentiment])}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
                           {item.sentiment === "positive" ? <TrendingUp className="w-4 h-4 text-bullish mt-0.5 shrink-0" /> : item.sentiment === "negative" ? <TrendingDown className="w-4 h-4 text-bearish mt-0.5 shrink-0" /> : <Minus className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />}
@@ -161,7 +161,7 @@ export default function SentimentPage() {
             </Card>
 
             {!data.aiPowered && (
-              <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div className="mt-4 p-4 rounded-sm bg-primary/5 border border-primary/20">
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles className="w-4 h-4 text-primary" />
                   <p className="text-sm font-semibold text-primary">GPT-powered sentiment is loading</p>

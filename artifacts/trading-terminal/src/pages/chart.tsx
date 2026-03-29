@@ -17,17 +17,17 @@ const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d'] as const;
 const PERIODS = ['1D', '5D', '1M', '3M', '6M', '1Y'] as const;
 
 const CHART_COLORS = {
-  background: "#0a0e1a",
-  text: "#8892a4",
-  grid: "#1a2035",
-  border: "#1e2d45",
-  crosshair: "#3b82f6",
+  background: "#0a0a0a",
+  text: "#6b7280",
+  grid: "#161616",
+  border: "#212121",
+  crosshair: "#6b7280",
   upColor: "#22c55e",
   downColor: "#ef4444",
   wickUp: "#22c55e",
   wickDown: "#ef4444",
-  volumeUp: "rgba(34,197,94,0.4)",
-  volumeDown: "rgba(239,68,68,0.4)",
+  volumeUp: "rgba(34,197,94,0.35)",
+  volumeDown: "rgba(239,68,68,0.35)",
 };
 
 function formatCandleTime(timestamp: string | number): number {
@@ -64,8 +64,8 @@ export default function ChartPage() {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: CHART_COLORS.crosshair, labelBackgroundColor: "#1e3a5f" },
-        horzLine: { color: CHART_COLORS.crosshair, labelBackgroundColor: "#1e3a5f" },
+        vertLine: { color: CHART_COLORS.crosshair, labelBackgroundColor: "#212121" },
+        horzLine: { color: CHART_COLORS.crosshair, labelBackgroundColor: "#212121" },
       },
       rightPriceScale: {
         borderColor: CHART_COLORS.border,
@@ -171,12 +171,12 @@ export default function ChartPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50">
+          <div className="flex bg-muted/50 p-1 rounded-sm border border-border/50">
             {TIMEFRAMES.map(tf => (
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
-                className={`px-3 py-1.5 text-xs font-mono rounded-md transition-all ${
+                className={`px-3 py-1.5 text-xs font-mono rounded-sm transition-all ${
                   timeframe === tf
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -186,12 +186,12 @@ export default function ChartPage() {
               </button>
             ))}
           </div>
-          <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50">
+          <div className="flex bg-muted/50 p-1 rounded-sm border border-border/50">
             {PERIODS.map(p => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs font-mono rounded-md transition-all ${
+                className={`px-3 py-1.5 text-xs font-mono rounded-sm transition-all ${
                   period === p
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'

@@ -137,7 +137,7 @@ export default function RiskPage() {
                     { label: "Drawdown Circuit Breaker", active: true, desc: `Stop trading at ${((s?.maxDrawdownPct ?? 0.15) * 100).toFixed(0)}% portfolio loss` },
                     { label: "Concurrent Position Limit", active: true, desc: `Max ${s?.maxOpenPositions ?? 5} open positions at once` },
                   ].map(rule => (
-                    <div key={rule.label} className="flex items-start gap-3 p-3 rounded-xl border border-border/40 bg-muted/20">
+                    <div key={rule.label} className="flex items-start gap-3 p-3 rounded-sm border border-border/40 bg-muted/20">
                       {rule.active ? <CheckCircle2 className="w-4 h-4 text-bullish shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
                       <div>
                         <p className="text-sm font-medium">{rule.label}</p>
@@ -175,7 +175,7 @@ export default function RiskPage() {
                         else if (field.key === "maxDrawdownPct") setForm(f => ({ ...f, maxDrawdownPct: val / 100 }));
                         else setForm(f => ({ ...f, [field.key]: val }));
                       }}
-                      className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                 ))}
@@ -185,7 +185,7 @@ export default function RiskPage() {
                   <div className="flex gap-2">
                     {[true, false].map(val => (
                       <button key={String(val)} onClick={() => setForm(f => ({ ...f, stopLossEnforcement: val }))}
-                        className={cn("flex-1 py-2 rounded-xl text-sm font-medium border transition-all", (form.stopLossEnforcement ?? s?.stopLossEnforcement) === val ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-muted")}>
+                        className={cn("flex-1 py-2 rounded-sm text-sm font-medium border transition-all", (form.stopLossEnforcement ?? s?.stopLossEnforcement) === val ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-muted")}>
                         {val ? "Enabled" : "Disabled"}
                       </button>
                     ))}
@@ -197,14 +197,14 @@ export default function RiskPage() {
                   <div className="flex gap-2">
                     {[true, false].map(val => (
                       <button key={String(val)} onClick={() => setForm(f => ({ ...f, tradingEnabled: val }))}
-                        className={cn("flex-1 py-2 rounded-xl text-sm font-medium border transition-all", (form.tradingEnabled ?? s?.tradingEnabled) === val ? val ? "bg-bullish/10 text-bullish border-bullish/30" : "bg-bearish/10 text-bearish border-bearish/30" : "border-border text-muted-foreground hover:bg-muted")}>
+                        className={cn("flex-1 py-2 rounded-sm text-sm font-medium border transition-all", (form.tradingEnabled ?? s?.tradingEnabled) === val ? val ? "bg-bullish/10 text-bullish border-bullish/30" : "bg-bearish/10 text-bearish border-bearish/30" : "border-border text-muted-foreground hover:bg-muted")}>
                         {val ? "Trading ON" : "Trading OFF"}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {saved && <div className="flex items-center gap-2 text-bullish text-sm bg-bullish/10 border border-bullish/20 px-3 py-2 rounded-xl"><CheckCircle2 className="w-4 h-4" /> Settings saved</div>}
+                {saved && <div className="flex items-center gap-2 text-bullish text-sm bg-bullish/10 border border-bullish/20 px-3 py-2 rounded-sm"><CheckCircle2 className="w-4 h-4" /> Settings saved</div>}
                 <Btn variant="primary" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate(form)}>
                   <Save className="w-4 h-4" /> Save Settings
                 </Btn>

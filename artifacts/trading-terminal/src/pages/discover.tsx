@@ -133,7 +133,7 @@ export default function DiscoverPage() {
                     value={addInput}
                     onChange={e => setAddInput(e.target.value.toUpperCase())}
                     placeholder="Add symbol (e.g. NVDA)"
-                    className="flex-1 h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                    className="flex-1 h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
                   />
                   <Btn type="submit" size="sm" disabled={addMutation.isPending || !addInput}>
                     <Plus className="w-4 h-4" /> Add
@@ -191,7 +191,7 @@ export default function DiscoverPage() {
 
                 <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">{idea.rationale}</p>
 
-                <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-muted/40 border border-border/40 text-xs">
+                <div className="grid grid-cols-3 gap-2 p-3 rounded-sm bg-muted/40 border border-border/40 text-xs">
                   <div>
                     <p className="text-muted-foreground/70 mb-0.5">Entry</p>
                     <p className="font-mono font-semibold text-xs">{idea.entryZone}</p>
@@ -249,7 +249,7 @@ function MoverSection({ title, icon, items, loading, error, onSelect, showVolume
           <div className="flex flex-col gap-1">
             {items.slice(0, 6).map(q => (
               <Link key={q.symbol} href="/autopilot" onClick={() => onSelect(q.symbol)}>
-                <div className="flex items-center justify-between px-2 py-2.5 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors group">
+                <div className="flex items-center justify-between px-2 py-2.5 rounded-sm hover:bg-muted/50 cursor-pointer transition-colors group">
                   <div>
                     <p className="font-mono font-bold text-sm group-hover:text-primary transition-colors">{q.symbol}</p>
                     {showVolume

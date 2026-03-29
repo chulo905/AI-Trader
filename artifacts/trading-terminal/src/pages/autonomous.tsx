@@ -136,19 +136,19 @@ export default function AutonomousPage() {
             </CardHeader>
             <CardContent>
               {showAdd && (
-                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col gap-3">
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 rounded-sm bg-primary/5 border border-primary/20 flex flex-col gap-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">Symbol</label>
-                      <input value={newSymbol} onChange={e => setNewSymbol(e.target.value.toUpperCase())} placeholder="AAPL" className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <input value={newSymbol} onChange={e => setNewSymbol(e.target.value.toUpperCase())} placeholder="AAPL" className="w-full h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">Budget/Trade ($)</label>
-                      <input type="number" value={budget} onChange={e => setBudget(e.target.value)} className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <input type="number" value={budget} onChange={e => setBudget(e.target.value)} className="w-full h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">Interval</label>
-                      <select value={interval} onChange={e => setInterval_(Number(e.target.value))} className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none">
+                      <select value={interval} onChange={e => setInterval_(Number(e.target.value))} className="w-full h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm focus:outline-none">
                         {INTERVAL_OPTIONS.map(o => <option key={o} value={o}>{o} min</option>)}
                       </select>
                     </div>
@@ -170,7 +170,7 @@ export default function AutonomousPage() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {status.configs.map(cfg => (
-                    <div key={cfg.symbol} className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/20 transition-colors">
+                    <div key={cfg.symbol} className="flex items-center justify-between p-4 rounded-sm border border-border/50 hover:bg-muted/20 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={cn("w-2 h-2 rounded-full", cfg.enabled ? "bg-bullish animate-pulse" : "bg-muted-foreground")} />
                         <div>
@@ -183,7 +183,7 @@ export default function AutonomousPage() {
                           <p className={cn("text-xs font-semibold", actionColor(cfg.lastAction))}>{cfg.lastAction ?? "Waiting..."}</p>
                           <p className="text-[10px] text-muted-foreground">{cfg.lastRunAt ? new Date(cfg.lastRunAt).toLocaleTimeString() : "Never run"}</p>
                         </div>
-                        <button onClick={() => toggleMutation.mutate(cfg.symbol)} className={cn("text-xs px-3 py-1.5 rounded-xl font-semibold border transition-all", cfg.enabled ? "bg-bullish/10 text-bullish border-bullish/20 hover:bg-bullish/20" : "bg-muted text-muted-foreground border-border hover:bg-muted/80")}>
+                        <button onClick={() => toggleMutation.mutate(cfg.symbol)} className={cn("text-xs px-3 py-1.5 rounded-sm font-semibold border transition-all", cfg.enabled ? "bg-bullish/10 text-bullish border-bullish/20 hover:bg-bullish/20" : "bg-muted text-muted-foreground border-border hover:bg-muted/80")}>
                           {cfg.enabled ? <><Square className="w-3 h-3 inline mr-1" />Stop</> : <><Play className="w-3 h-3 inline mr-1" />Start</>}
                         </button>
                         <button onClick={() => deleteMutation.mutate(cfg.symbol)} className="text-muted-foreground hover:text-bearish transition-colors">
@@ -216,7 +216,7 @@ export default function AutonomousPage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className="mt-4 flex items-start gap-2 p-3 rounded-sm bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-300">This is paper trading only. No real money is used. All trades are simulated with virtual funds.</p>
               </div>
@@ -241,7 +241,7 @@ export default function AutonomousPage() {
             ) : (
               <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto">
                 {log.map((entry, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div key={i} className="p-3 rounded-sm bg-muted/30 border border-border/40">
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-mono font-bold text-xs">{entry.symbol}</span>
                       <span className={cn("text-xs font-semibold", actionColor(entry.action))}>{entry.action}</span>

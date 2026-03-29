@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 @theme inline {
@@ -30,31 +30,31 @@
 
 @layer base {
   :root {
-    --background: 222 28% 6%;
-    --foreground: 213 31% 96%;
-    --card: 220 26% 9%;
-    --card-foreground: 213 31% 96%;
-    --border: 220 18% 14%;
-    --input: 220 18% 14%;
+    --background:        0 0%  4%;
+    --foreground:        0 0% 92%;
+    --card:              0 0%  7%;
+    --card-foreground:   0 0% 92%;
+    --border:            0 0% 13%;
+    --input:             0 0% 10%;
 
-    --primary: 215 100% 60%;
-    --primary-foreground: 222 28% 6%;
+    --primary:           0 0% 96%;
+    --primary-foreground: 0 0%  4%;
 
-    --muted: 220 18% 12%;
-    --muted-foreground: 215 16% 52%;
+    --muted:             0 0%  9%;
+    --muted-foreground:  0 0% 42%;
 
-    --accent: 220 18% 14%;
-    --accent-foreground: 213 31% 96%;
+    --accent:            0 0% 12%;
+    --accent-foreground: 0 0% 92%;
 
-    --destructive: 355 80% 60%;
-    --destructive-foreground: 213 31% 96%;
+    --destructive:       0 84% 60%;
+    --destructive-foreground: 0 0% 92%;
 
-    --bullish: 155 72% 45%;
-    --bullish-bg: 155 72% 8%;
-    --bearish: 355 80% 60%;
-    --bearish-bg: 355 80% 10%;
-    --warning: 38 92% 52%;
-    --warning-bg: 38 92% 10%;
+    --bullish:     142 71% 45%;
+    --bullish-bg:  142 71%  5%;
+    --bearish:       0 84% 60%;
+    --bearish-bg:    0 84%  6%;
+    --warning:      38 92% 52%;
+    --warning-bg:   38 92%  6%;
   }
 
   * { box-sizing: border-box; }
@@ -65,27 +65,12 @@
   }
 
   ::selection {
-    background: hsl(215 100% 60% / 0.2);
-    color: hsl(215 100% 75%);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
   }
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
-::-webkit-scrollbar-thumb:hover { background: hsl(215 16% 30%); }
-
-/* Glow utilities */
-.glow-green { box-shadow: 0 0 20px hsl(155 72% 45% / 0.15); }
-.glow-red { box-shadow: 0 0 20px hsl(355 80% 60% / 0.15); }
-.glow-blue { box-shadow: 0 0 20px hsl(215 100% 60% / 0.15); }
-
-/* Card shine */
-.card-shine::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, hsl(215 100% 60% / 0.12), transparent);
-}
+::-webkit-scrollbar-thumb { background: hsl(0 0% 16%); }
+::-webkit-scrollbar-thumb:hover { background: hsl(0 0% 28%); }

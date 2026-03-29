@@ -151,8 +151,8 @@ export default function PortfolioPage() {
 
 function PerformanceStat({ icon, label, value, sub, valueClass }: { icon: React.ReactNode; label: string; value: string; sub?: string; valueClass?: string }) {
   return (
-    <div className="p-4 rounded-2xl border border-border bg-card flex items-start gap-3">
-      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">{icon}</div>
+    <div className="p-4 rounded-sm border border-border bg-card flex items-start gap-3">
+      <div className="w-9 h-9 rounded-sm bg-muted flex items-center justify-center shrink-0">{icon}</div>
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className={cn("text-xl font-bold font-mono", valueClass)}>{value}</p>

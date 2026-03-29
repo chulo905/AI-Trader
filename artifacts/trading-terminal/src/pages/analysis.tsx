@@ -40,7 +40,7 @@ export default function AnalysisPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {!aiPowered && (
-            <div className="lg:col-span-3 flex items-center gap-3 px-4 py-3 rounded-lg border border-primary/30 bg-primary/5 text-sm">
+            <div className="lg:col-span-3 flex items-center gap-3 px-4 py-3 rounded-sm border border-primary/30 bg-primary/5 text-sm">
               <RefreshCw className="w-4 h-4 text-primary animate-spin" />
               <span className="text-primary font-medium">GPT analysis is computing in the background —</span>
               <span className="text-muted-foreground">showing computed indicator results now. Page auto-refreshes every 15s.</span>
@@ -119,7 +119,7 @@ export default function AnalysisPage() {
             <TerminalCard title="Key Price Levels">
               <div className="flex flex-col gap-3">
                 {analysis.keyLevels.map((lvl, i) => (
-                  <div key={i} className="flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 relative overflow-hidden">
+                  <div key={i} className="flex flex-col p-3 rounded-sm border border-border/50 bg-background/50 relative overflow-hidden">
                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                       lvl.type === 'resistance' || lvl.type === 'stop' ? 'bg-bearish' :
                       lvl.type === 'support' ? 'bg-bullish' : 'bg-primary'

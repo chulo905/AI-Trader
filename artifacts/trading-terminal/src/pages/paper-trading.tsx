@@ -77,11 +77,11 @@ export default function PaperTradingPage() {
           <TerminalCard title="Order Ticket">
             <form onSubmit={handleTrade} className="flex flex-col gap-5">
               
-              <div className="flex gap-2 p-1 bg-muted rounded-lg border border-border/50">
-                <button type="button" onClick={() => setSide('long')} className={`flex-1 py-2 text-sm font-bold uppercase rounded-md transition-all ${side === 'long' ? 'bg-bullish text-white shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
+              <div className="flex gap-2 p-1 bg-muted rounded-sm border border-border/50">
+                <button type="button" onClick={() => setSide('long')} className={`flex-1 py-2 text-sm font-bold uppercase rounded-sm transition-all ${side === 'long' ? 'bg-bullish text-white shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>
                   Buy / Long
                 </button>
-                <button type="button" onClick={() => setSide('short')} className={`flex-1 py-2 text-sm font-bold uppercase rounded-md transition-all ${side === 'short' ? 'bg-bearish text-white shadow-md' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button type="button" onClick={() => setSide('short')} className={`flex-1 py-2 text-sm font-bold uppercase rounded-sm transition-all ${side === 'short' ? 'bg-bearish text-white shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>
                   Sell / Short
                 </button>
               </div>
@@ -126,7 +126,7 @@ export default function PaperTradingPage() {
                 </div>
               </div>
 
-              <div className="bg-background border border-border/50 rounded-lg p-3 text-sm font-mono mt-2">
+              <div className="bg-background border border-border/50 rounded-sm p-3 text-sm font-mono mt-2">
                 <div className="flex justify-between mb-1">
                   <span className="text-muted-foreground">Est. Value</span>
                   <span>{formatCurrency(Number(shares) * Number(entryPrice || 0))}</span>
@@ -183,7 +183,7 @@ export default function PaperTradingPage() {
                 ))}
                 {!positions?.length && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground border border-dashed border-border/50 rounded-lg">
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground border border-dashed border-border/50 rounded-sm">
                       No open positions. Execute a trade to see it here.
                     </td>
                   </tr>

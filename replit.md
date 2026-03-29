@@ -41,9 +41,11 @@ artifacts-monorepo/
 A professional Bloomberg-style dark terminal for paper trading, AI technical analysis, market data, and portfolio tracking. All data labeled as "Paper Trading / AI Analysis — Not Financial Advice."
 
 ### Frontend (`artifacts/trading-terminal`)
-- React + Vite + TanStack React Query + Recharts + Framer Motion + Lucide
-- Pages: Dashboard, Watchlist, Charts, AI Analysis, Trade Ideas, Paper Trading, Portfolio, Alerts, Settings
-- Custom dark terminal theme with `bullish` (green), `bearish` (red), `neutral` (amber) color tokens
+- React + Vite + TanStack React Query + Framer Motion + Lucide + lightweight-charts
+- Pages (12): Dashboard, AI Pilot, Auto Loop, Charts, Portfolio, Sentiment, Discover, Backtest, Risk, Brokerage, Alerts, Settings
+- **Design system** — pure monochrome: `background` near-black `hsl(0 0% 4%)`, `card` `hsl(0 0% 7%)`, `primary` white `hsl(0 0% 96%)`. Semantic semantic only: `bullish` green `hsl(142 71% 45%)`, `bearish` red `hsl(0 84% 60%)`. NO gradients, NO shadows on cards.
+- **Typography** — Inter (UI), JetBrains Mono (data/numbers). ALL-CAPS `tracking-widest` labels at `text-[10px]`/`text-[11px]`. `tabular-nums font-mono` on all prices.
+- **Geometry** — `rounded-sm` everywhere (no rounded-xl/2xl/lg). Sharp card borders. Divide-y rows instead of gaps.
 - Dark mode always-on: colors defined in `:root` CSS variables, no toggling needed
 - State: `useAppState` (Zustand) manages `selectedSymbol` (default: "AAPL")
 

@@ -94,13 +94,13 @@ export default function BacktestingPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <label className="text-xs text-muted-foreground mb-1.5 block">Symbol</label>
-              <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL" className="h-9 w-32 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL" className="h-9 w-32 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1.5 block">Period</label>
-              <div className="flex bg-muted/50 p-1 rounded-xl border border-border/50">
+              <div className="flex bg-muted/50 p-1 rounded-sm border border-border/50">
                 {PERIODS.map(p => (
-                  <button key={p} onClick={() => setPeriod(p)} className={cn("px-4 py-1.5 text-xs font-mono rounded-lg transition-all", period === p ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                  <button key={p} onClick={() => setPeriod(p)} className={cn("px-4 py-1.5 text-xs font-mono rounded-sm transition-all", period === p ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                     {p}
                   </button>
                 ))}
@@ -123,7 +123,7 @@ export default function BacktestingPage() {
       {isLoading && <Skeleton className="h-96" />}
 
       {error && (
-        <div className="p-6 rounded-2xl bg-bearish/10 border border-bearish/20 text-center">
+        <div className="p-6 rounded-sm bg-bearish/10 border border-bearish/20 text-center">
           <AlertTriangle className="w-8 h-8 text-bearish mx-auto mb-2" />
           <p className="text-bearish">Backtest failed. Try a different period or symbol.</p>
         </div>
@@ -132,7 +132,7 @@ export default function BacktestingPage() {
       {data && !isLoading && (
         <div className="flex flex-col gap-6">
           {/* Summary */}
-          <div className="p-4 rounded-2xl border border-border/50 bg-muted/20">
+          <div className="p-4 rounded-sm border border-border/50 bg-muted/20">
             <p className="text-sm text-muted-foreground">{data.summary}</p>
           </div>
 
@@ -166,7 +166,7 @@ export default function BacktestingPage() {
                   </span>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-muted/30 rounded-xl p-4">
+                  <div className="bg-muted/30 rounded-sm p-4">
                     <MiniEquityCurve equity={data.equity} />
                   </div>
                   <div className="flex justify-between mt-3 text-xs text-muted-foreground font-mono">
@@ -174,15 +174,15 @@ export default function BacktestingPage() {
                     <span className={cn("font-bold", positive ? "text-bullish" : "text-bearish")}>{formatCurrency(data.equity[data.equity.length - 1] ?? 100000)} end</span>
                   </div>
                   <div className="grid grid-cols-3 gap-3 mt-4">
-                    <div className="text-center p-3 rounded-xl bg-muted/30">
+                    <div className="text-center p-3 rounded-sm bg-muted/30">
                       <p className="text-xs text-muted-foreground">Best Trade</p>
                       <p className="text-sm font-bold text-bullish">+{formatCurrency(data.bestTrade)}</p>
                     </div>
-                    <div className="text-center p-3 rounded-xl bg-muted/30">
+                    <div className="text-center p-3 rounded-sm bg-muted/30">
                       <p className="text-xs text-muted-foreground">Avg Hold</p>
                       <p className="text-sm font-bold">{data.avgHoldingDays.toFixed(1)}d</p>
                     </div>
-                    <div className="text-center p-3 rounded-xl bg-muted/30">
+                    <div className="text-center p-3 rounded-sm bg-muted/30">
                       <p className="text-xs text-muted-foreground">Worst Trade</p>
                       <p className="text-sm font-bold text-bearish">{formatCurrency(data.worstTrade)}</p>
                     </div>
@@ -200,7 +200,7 @@ export default function BacktestingPage() {
               <CardContent>
                 <div className="flex flex-col gap-1.5 max-h-[360px] overflow-y-auto">
                   {data.trades.map((t, i) => (
-                    <div key={i} className={cn("flex items-center justify-between px-3 py-2 rounded-xl text-xs", t.pnl >= 0 ? "bg-bullish/5 border border-bullish/10" : "bg-bearish/5 border border-bearish/10")}>
+                    <div key={i} className={cn("flex items-center justify-between px-3 py-2 rounded-sm text-xs", t.pnl >= 0 ? "bg-bullish/5 border border-bullish/10" : "bg-bearish/5 border border-bearish/10")}>
                       <div>
                         <p className="font-mono font-semibold">{t.reason}</p>
                         <p className="text-muted-foreground">{t.holdingDays}d · {t.shares} shares</p>

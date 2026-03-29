@@ -100,7 +100,7 @@ export default function WatchlistPage() {
                   <button 
                     key={w.id} 
                     onClick={() => setActiveListId(w.id)}
-                    className={`text-left px-3 py-2 rounded-lg transition-all ${
+                    className={`text-left px-3 py-2 rounded-sm transition-all ${
                       (activeListId === w.id || (!activeListId && watchlists[0]?.id === w.id)) 
                       ? "bg-primary/20 text-primary border border-primary/30" 
                       : "hover:bg-muted text-foreground border border-transparent"
@@ -147,7 +147,7 @@ export default function WatchlistPage() {
             )}
 
             {!activeList?.symbols.length ? (
-              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center border border-dashed border-border/50 rounded-lg">
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center border border-dashed border-border/50 rounded-sm">
                 <List className="w-12 h-12 mb-4 opacity-20" />
                 <p>This watchlist is empty.</p>
                 <p className="text-xs mt-2">Type a symbol above or click "Add [SYMBOL]" in the header to add stocks.</p>

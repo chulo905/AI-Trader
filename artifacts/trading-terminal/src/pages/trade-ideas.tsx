@@ -30,7 +30,7 @@ export default function TradeIdeasPage() {
                 </div>
               </div>
 
-              <div className="bg-background rounded-lg border border-border/50 p-3 mb-4 flex flex-col gap-2">
+              <div className="bg-background rounded-sm border border-border/50 p-3 mb-4 flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm font-mono border-b border-border/50 pb-2">
                   <span className="text-muted-foreground">ENTRY</span>
                   <span className="font-bold">{idea.entryZone}</span>
@@ -63,7 +63,7 @@ export default function TradeIdeasPage() {
             </TerminalCard>
           ))}
           {!ideas?.length && (
-            <div className="col-span-full p-12 text-center text-muted-foreground border border-dashed border-border rounded-xl">
+            <div className="col-span-full p-12 text-center text-muted-foreground border border-dashed border-border rounded-sm">
               No active trade ideas at the moment. Check back later.
             </div>
           )}

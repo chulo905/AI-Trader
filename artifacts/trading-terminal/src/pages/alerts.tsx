@@ -62,15 +62,15 @@ export default function AlertsPage() {
                   value={symbol}
                   onChange={e => setSymbol(e.target.value.toUpperCase())}
                   placeholder="e.g. AAPL"
-                  className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
                   required
                 />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1.5 block">Alert When Price</label>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setType("price_above")} className={cn("flex-1 py-2 rounded-xl text-sm font-medium border transition-all", type === "price_above" ? "bg-bullish/10 text-bullish border-bullish/30" : "border-border text-muted-foreground hover:bg-muted")}>Goes Above</button>
-                  <button type="button" onClick={() => setType("price_below")} className={cn("flex-1 py-2 rounded-xl text-sm font-medium border transition-all", type === "price_below" ? "bg-bearish/10 text-bearish border-bearish/30" : "border-border text-muted-foreground hover:bg-muted")}>Falls Below</button>
+                  <button type="button" onClick={() => setType("price_above")} className={cn("flex-1 py-2 rounded-sm text-sm font-medium border transition-all", type === "price_above" ? "bg-bullish/10 text-bullish border-bullish/30" : "border-border text-muted-foreground hover:bg-muted")}>Goes Above</button>
+                  <button type="button" onClick={() => setType("price_below")} className={cn("flex-1 py-2 rounded-sm text-sm font-medium border transition-all", type === "price_below" ? "bg-bearish/10 text-bearish border-bearish/30" : "border-border text-muted-foreground hover:bg-muted")}>Falls Below</button>
                 </div>
               </div>
               <div>
@@ -79,12 +79,12 @@ export default function AlertsPage() {
                   type="number" step="0.01" value={price}
                   onChange={e => setPrice(e.target.value)}
                   placeholder="e.g. 185.00"
-                  className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full h-9 rounded-sm border border-border bg-muted/40 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
                   required
                 />
               </div>
               {created && (
-                <div className="flex items-center gap-2 text-bullish text-sm bg-bullish/10 border border-bullish/20 px-3 py-2 rounded-xl">
+                <div className="flex items-center gap-2 text-bullish text-sm bg-bullish/10 border border-bullish/20 px-3 py-2 rounded-sm">
                   <CheckCircle2 className="w-4 h-4" /> Alert created!
                 </div>
               )}
@@ -111,7 +111,7 @@ export default function AlertsPage() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {alerts.map(alert => (
-                    <div key={alert.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/30 transition-colors">
+                    <div key={alert.id} className="flex items-center justify-between p-4 rounded-sm border border-border/50 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={cn("w-2 h-2 rounded-full", alert.triggered ? "bg-muted-foreground" : "bg-bullish animate-pulse")} />
                         <div>
@@ -122,7 +122,7 @@ export default function AlertsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {alert.triggered && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-lg">Triggered</span>}
+                        {alert.triggered && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-sm">Triggered</span>}
                         <button
                           onClick={() => deleteMutation.mutate({ id: alert.id })}
                           className="text-muted-foreground hover:text-bearish transition-colors"
