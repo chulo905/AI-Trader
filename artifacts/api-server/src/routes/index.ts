@@ -7,6 +7,7 @@ import tradesRouter from "./trades";
 import alertsRouter from "./alerts";
 import analysisRouter from "./analysis";
 import settingsRouter from "./settings";
+import autopilotRouter from "./autopilot";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use("/trades", tradesRouter);
 router.use("/alerts", alertsRouter);
 router.use("/analysis", analysisRouter);
 router.use("/settings", settingsRouter);
+router.use("/autopilot", autopilotRouter);
 
 export default router;

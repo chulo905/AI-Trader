@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,11 +6,9 @@ import NotFound from "@/pages/not-found";
 
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
-import WatchlistPage from "@/pages/watchlist";
+import AIPilotPage from "@/pages/ai-pilot";
 import ChartPage from "@/pages/chart";
-import AnalysisPage from "@/pages/analysis";
-import TradeIdeasPage from "@/pages/trade-ideas";
-import PaperTradingPage from "@/pages/paper-trading";
+import DiscoverPage from "@/pages/discover";
 import PortfolioPage from "@/pages/portfolio";
 import AlertsPage from "@/pages/alerts";
 import SettingsPage from "@/pages/settings";
@@ -19,7 +17,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      staleTime: 5000,
+      staleTime: 10000,
       retry: 1,
     }
   }
@@ -30,14 +28,17 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
-        <Route path="/watchlist" component={WatchlistPage} />
+        <Route path="/autopilot" component={AIPilotPage} />
         <Route path="/chart" component={ChartPage} />
-        <Route path="/analysis" component={AnalysisPage} />
-        <Route path="/ideas" component={TradeIdeasPage} />
-        <Route path="/trade" component={PaperTradingPage} />
+        <Route path="/discover" component={DiscoverPage} />
         <Route path="/portfolio" component={PortfolioPage} />
         <Route path="/alerts" component={AlertsPage} />
         <Route path="/settings" component={SettingsPage} />
+        {/* Legacy redirects */}
+        <Route path="/watchlist"><Redirect to="/discover" /></Route>
+        <Route path="/analysis"><Redirect to="/autopilot" /></Route>
+        <Route path="/ideas"><Redirect to="/discover" /></Route>
+        <Route path="/trade"><Redirect to="/autopilot" /></Route>
         <Route component={NotFound} />
       </Switch>
     </Layout>

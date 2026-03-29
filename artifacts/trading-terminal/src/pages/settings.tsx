@@ -1,121 +1,99 @@
-import React, { useState, useEffect } from "react";
-import { useGetSettings, useUpdateSettings } from "@workspace/api-client-react";
-import { TerminalCard, PageTransition, TerminalSkeleton, ErrorPanel, TerminalButton, TerminalInput, TerminalLabel } from "@/components/terminal-ui";
-import { Settings, ShieldAlert } from "lucide-react";
+import React from "react";
+import { Card, CardHeader, CardTitle, CardContent, PageTransition, Btn } from "@/components/terminal-ui";
+import { Settings, Sparkles, Shield, RefreshCw, Info } from "lucide-react";
+import { useAppState } from "@/hooks/use-app-state";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function SettingsPage() {
+  const { selectedSymbol, setSelectedSymbol } = useAppState();
   const queryClient = useQueryClient();
-  const { data: settings, isLoading, error } = useGetSettings();
-  const updateMutation = useUpdateSettings({
-    mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/settings'] })
-    }
-  });
-
-  const [formData, setFormData] = useState<any>({});
-
-  useEffect(() => {
-    if (settings) {
-      setFormData(settings);
-    }
-  }, [settings]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    let finalValue: any = value;
-    if (type === 'number') finalValue = Number(value);
-    if (type === 'checkbox') finalValue = (e.target as HTMLInputElement).checked;
-    
-    setFormData((prev: any) => ({ ...prev, [name]: finalValue }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate({ data: formData });
-  };
 
   return (
     <PageTransition>
-      <div className="flex items-center gap-3 mb-6">
-        <Settings className="w-8 h-8 text-primary" />
-        <h1 className="text-2xl font-bold tracking-tight">System Settings</h1>
+      <div className="flex items-center gap-3 mb-2">
+        <Settings className="w-6 h-6 text-primary" />
+        <h1 className="text-xl font-bold">Settings</h1>
       </div>
 
-      {error ? <ErrorPanel error={error} /> : isLoading ? <TerminalSkeleton className="h-[500px]" /> : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
-          
-          <TerminalCard title="Risk Controls & Account">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <div className="flex items-center gap-3 p-3 bg-bearish/10 border border-bearish/20 rounded-lg text-bearish mb-2">
-                <ShieldAlert className="w-5 h-5 flex-shrink-0" />
-                <p className="text-xs">Risk controls apply to Paper Trading module. Modifying account size resets paper performance.</p>
-              </div>
+      <div className="max-w-2xl flex flex-col gap-5">
 
-              <div>
-                <TerminalLabel>Paper Account Size ($)</TerminalLabel>
-                <TerminalInput type="number" name="accountSize" value={formData.accountSize || ""} onChange={handleChange} required />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <TerminalLabel>Max Risk Per Trade (%)</TerminalLabel>
-                  <TerminalInput type="number" step="0.1" name="maxRiskPerTrade" value={formData.maxRiskPerTrade || ""} onChange={handleChange} />
-                </div>
-                <div>
-                  <TerminalLabel>Max Daily Loss ($)</TerminalLabel>
-                  <TerminalInput type="number" name="maxDailyLoss" value={formData.maxDailyLoss || ""} onChange={handleChange} />
-                </div>
-              </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <CardTitle>AI Pilot</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Row label="Default Symbol" desc="What AI Pilot analyzes when you first open it">
+              <input
+                value={selectedSymbol}
+                onChange={e => setSelectedSymbol(e.target.value.toUpperCase())}
+                className="w-28 h-8 rounded-lg border border-border bg-muted/50 px-3 text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary/50 uppercase"
+              />
+            </Row>
+            <Row label="AI Cache Duration" desc="AI decisions are reused for 3 minutes to save time">
+              <span className="text-xs bg-bullish/10 text-bullish border border-bullish/20 px-2 py-1 rounded-lg font-medium">3 min cache</span>
+            </Row>
+          </CardContent>
+        </Card>
 
-              <div>
-                <TerminalLabel>Strategy Focus</TerminalLabel>
-                <select 
-                  name="strategyFocus" 
-                  value={formData.strategyFocus || ""} 
-                  onChange={handleChange}
-                  className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="momentum">Momentum</option>
-                  <option value="breakout">Breakout</option>
-                  <option value="mean_reversion">Mean Reversion</option>
-                  <option value="swing">Swing Trading</option>
-                </select>
-              </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-warning" />
+              <CardTitle>Account</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Row label="Starting Balance" desc="Your simulated paper trading account">
+              <span className="font-mono font-bold text-sm">$100,000</span>
+            </Row>
+            <Row label="Trading Mode" desc="No real money is ever used on this platform">
+              <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-lg font-medium">Paper Only ✓</span>
+            </Row>
+          </CardContent>
+        </Card>
 
-              <div>
-                <TerminalLabel>Risk Tolerance</TerminalLabel>
-                <select 
-                  name="riskTolerance" 
-                  value={formData.riskTolerance || ""} 
-                  onChange={handleChange}
-                  className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="conservative">Conservative</option>
-                  <option value="moderate">Moderate</option>
-                  <option value="aggressive">Aggressive</option>
-                </select>
-              </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              <CardTitle>About & Disclaimer</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              <strong className="text-foreground">AI Trader</strong> is a paper trading simulator powered by artificial intelligence.
+              All trades use virtual money — no real funds are at risk.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+              AI analysis is for <strong className="text-foreground">educational purposes only</strong> and does not constitute financial advice.
+              Past performance of the AI does not guarantee future results. Always consult a financial professional before investing real money.
+            </p>
+            <Btn
+              variant="outline" size="sm"
+              onClick={() => { queryClient.clear(); window.location.reload(); }}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Clear Cache & Reload
+            </Btn>
+          </CardContent>
+        </Card>
 
-              <div className="flex items-center gap-3 mt-2">
-                <input 
-                  type="checkbox" 
-                  id="alertsEnabled" 
-                  name="alertsEnabled" 
-                  checked={formData.alertsEnabled || false} 
-                  onChange={handleChange}
-                  className="w-4 h-4 accent-primary" 
-                />
-                <label htmlFor="alertsEnabled" className="text-sm">Enable System Alerts</label>
-              </div>
-
-              <TerminalButton type="submit" disabled={updateMutation.isPending} className="mt-4">
-                {updateMutation.isPending ? "Saving..." : "Save Configuration"}
-              </TerminalButton>
-            </form>
-          </TerminalCard>
-        </div>
-      )}
+      </div>
     </PageTransition>
+  );
+}
+
+function Row({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
+      </div>
+      {children}
+    </div>
   );
 }

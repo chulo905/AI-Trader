@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme inline {
@@ -19,63 +19,73 @@
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-  
+
   --color-bullish: hsl(var(--bullish));
-  --color-bullish-muted: hsl(var(--bullish-muted));
+  --color-bullish-bg: hsl(var(--bullish-bg));
   --color-bearish: hsl(var(--bearish));
-  --color-bearish-muted: hsl(var(--bearish-muted));
-  --color-neutral: hsl(var(--neutral));
-  --color-neutral-muted: hsl(var(--neutral-muted));
+  --color-bearish-bg: hsl(var(--bearish-bg));
+  --color-warning: hsl(var(--warning));
+  --color-warning-bg: hsl(var(--warning-bg));
 }
 
 @layer base {
   :root {
-    /* Pure Dark Terminal Theme */
-    --background: 224 40% 4%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 7%;
-    --card-foreground: 210 40% 98%;
-    --border: 222 20% 16%;
-    --input: 222 20% 16%;
-    
-    /* Cyan Primary */
-    --primary: 188 86% 53%;
-    --primary-foreground: 224 40% 4%;
-    
-    --muted: 215 25% 12%;
-    --muted-foreground: 215 20% 65%;
-    
-    --accent: 215 25% 15%;
-    --accent-foreground: 210 40% 98%;
-    
-    --destructive: 350 89% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --background: 222 28% 6%;
+    --foreground: 213 31% 96%;
+    --card: 220 26% 9%;
+    --card-foreground: 213 31% 96%;
+    --border: 220 18% 14%;
+    --input: 220 18% 14%;
 
-    /* Trading Specific Colors */
-    --bullish: 160 84% 39%;
-    --bullish-muted: 160 84% 15%;
-    --bearish: 350 89% 60%;
-    --bearish-muted: 350 89% 20%;
-    --neutral: 38 92% 50%;
-    --neutral-muted: 38 92% 20%;
+    --primary: 215 100% 60%;
+    --primary-foreground: 222 28% 6%;
+
+    --muted: 220 18% 12%;
+    --muted-foreground: 215 16% 52%;
+
+    --accent: 220 18% 14%;
+    --accent-foreground: 213 31% 96%;
+
+    --destructive: 355 80% 60%;
+    --destructive-foreground: 213 31% 96%;
+
+    --bullish: 155 72% 45%;
+    --bullish-bg: 155 72% 8%;
+    --bearish: 355 80% 60%;
+    --bearish-bg: 355 80% 10%;
+    --warning: 38 92% 52%;
+    --warning-bg: 38 92% 10%;
   }
+
+  * { box-sizing: border-box; }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-primary;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background: hsl(215 100% 60% / 0.2);
+    color: hsl(215 100% 75%);
   }
 }
 
-/* Hide scrollbars for terminal feel */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-border rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/40;
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+::-webkit-scrollbar-thumb:hover { background: hsl(215 16% 30%); }
+
+/* Glow utilities */
+.glow-green { box-shadow: 0 0 20px hsl(155 72% 45% / 0.15); }
+.glow-red { box-shadow: 0 0 20px hsl(355 80% 60% / 0.15); }
+.glow-blue { box-shadow: 0 0 20px hsl(215 100% 60% / 0.15); }
+
+/* Card shine */
+.card-shine::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(215 100% 60% / 0.12), transparent);
 }
