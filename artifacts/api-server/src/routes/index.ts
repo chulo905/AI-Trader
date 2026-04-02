@@ -14,6 +14,7 @@ import backtestRouter from "./backtest";
 import sentimentRouter from "./sentiment";
 import regimeRouter from "./regime";
 import brokerageRouter from "./brokerage";
+import mirofishRouter from "./mirofish";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use("/backtest", backtestRouter);
 router.use("/sentiment", sentimentRouter);
 router.use("/regime", regimeRouter);
 router.use("/brokerage", brokerageRouter);
+router.use("/mirofish", mirofishRouter);
 
 export default router;

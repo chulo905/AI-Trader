@@ -74,6 +74,16 @@ Files already fixed for this pattern: `chart.tsx`, `portfolio.tsx`, `dashboard.t
 - `TRADER_SAGE_API_KEY` env variable: set to enable real Trader Sage API
 - Without the key (or if unreachable), all endpoints return deterministic mock data with realistic price ranges
 
+### MiroFish Swarm Intelligence (Native OpenAI Implementation)
+- 10 AI investor persona agents: Warren (Value), Kira (Technical), Maya (Macro), Tyler (Momentum), Sophia (Risk), Alex (Market Structure), Jordan (Retail Sentiment), Ethan (Event-Driven), Luna (Contrarian), Quant (Statistical)
+- 2-round opinion dynamics: Round 1 = independent analysis, Round 2 = each agent reads peer consensus and can revise
+- Synthesis agent aggregates all views into a Chief Strategist report
+- Routes: `POST /api/mirofish/:symbol/run`, `GET /api/mirofish/:symbol/latest`, `GET /api/mirofish/:symbol/history`, `GET /api/mirofish/agents`, `GET /api/mirofish/history`
+- DB table: `mirofish_simulations` — persists all simulation runs
+- Frontend: `/mirofish` → "Swarm AI" page — agent vote cards, swarm donut chart, opinion dynamics panel, history
+- Cache TTL: 15 minutes (in-memory cache keyed by symbol + time bucket)
+- Engine: `artifacts/api-server/src/lib/mirofish.ts`
+
 ### AI Enhancements (HuggingFace + tulind)
 - `HUGGINGFACE_API_TOKEN` env variable: required to enable Chronos price forecasting and Financial RoBERTa sentiment analysis
   - Without the token, `/api/market/:symbol/forecast` returns 503; the Analysis page shows a fallback message

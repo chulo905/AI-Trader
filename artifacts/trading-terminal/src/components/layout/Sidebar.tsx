@@ -4,7 +4,7 @@ import { useGetPortfolio } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/utils";
 import {
   LayoutDashboard, Sparkles, LineChart, Compass, Briefcase,
-  Settings, Bot, Shield, FlaskConical, Newspaper, Cable, Bell, Brain, ArrowRightLeft,
+  Settings, Bot, Shield, FlaskConical, Newspaper, Cable, Bell, Brain, ArrowRightLeft, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Research",
     items: [
+      { path: "/mirofish",  label: "Swarm AI",   icon: Users,           desc: "10-agent consensus", highlight: true },
       { path: "/analysis",  label: "Analysis",   icon: Brain,           desc: "Technical & patterns" },
       { path: "/sentiment", label: "Sentiment",  icon: Newspaper,       desc: "News & sentiment" },
       { path: "/discover",  label: "Discover",   icon: Compass,         desc: "Find opportunities" },

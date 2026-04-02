@@ -21,6 +21,7 @@ import SentimentPage from "@/pages/sentiment";
 import BrokeragePage from "@/pages/brokerage";
 import AnalysisPage from "@/pages/analysis";
 import PaperTradingPage from "@/pages/paper-trading";
+import MirofishPage from "@/pages/mirofish";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ function Router() {
         <Route path="/brokerage" component={BrokeragePage} />
         <Route path="/analysis" component={AnalysisPage} />
         <Route path="/trade" component={PaperTradingPage} />
+        <Route path="/mirofish" component={MirofishPage} />
         {/* Legacy redirects */}
         <Route path="/watchlist"><Redirect to="/discover" /></Route>
         <Route path="/ideas"><Redirect to="/discover" /></Route>
