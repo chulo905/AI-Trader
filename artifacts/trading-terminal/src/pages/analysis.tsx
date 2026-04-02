@@ -41,12 +41,14 @@ interface AnalysisExtra {
 }
 
 interface ChronosForecast {
+  available?: boolean;
   direction: "bullish" | "bearish" | "neutral";
   forecastPct: number;
   confidenceLow: number;
   confidenceHigh: number;
   horizon: number;
   generatedAt: string;
+  error?: string;
 }
 
 function AIPriceForecastCard({ symbol }: { symbol: string }) {
@@ -72,7 +74,7 @@ function AIPriceForecastCard({ symbol }: { symbol: string }) {
     );
   }
 
-  if (error || !forecast) {
+  if (error || !forecast || forecast.available === false) {
     return (
       <TerminalCard className="border-muted/30">
         <div className="flex items-center gap-2 mb-3">

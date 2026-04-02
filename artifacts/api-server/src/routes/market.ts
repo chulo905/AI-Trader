@@ -48,15 +48,33 @@ router.get("/:symbol/forecast", async (req, res) => {
     const { candles } = await getHistory(symbol, "1d", "3M");
     const closingPrices = candles.map(c => c.close);
     if (closingPrices.length < 10) {
-      res.status(422).json({ error: "Insufficient price history for forecast (need at least 10 bars)" });
+      res.json({
+        available: false,
+        direction: "neutral" as const,
+        forecastPct: 0,
+        confidenceLow: 0,
+        confidenceHigh: 0,
+        horizon: 5,
+        generatedAt: new Date().toISOString(),
+        error: "Insufficient price history for forecast",
+      });
       return;
     }
     const forecast = await getChronosForecast(symbol, closingPrices);
-    res.json(forecast);
+    res.json({ ...forecast, available: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Forecast failed";
     logger.warn({ symbol, err }, "Chronos forecast error");
-    res.status(503).json({ error: msg });
+    res.json({
+      available: false,
+      direction: "neutral" as const,
+      forecastPct: 0,
+      confidenceLow: 0,
+      confidenceHigh: 0,
+      horizon: 5,
+      generatedAt: new Date().toISOString(),
+      error: msg,
+    });
   }
 });
 

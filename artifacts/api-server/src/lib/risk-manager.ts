@@ -70,7 +70,10 @@ export async function getPortfolioMetrics(currentPrices: Record<string, number> 
 
     const unrealizedPnl = openTrades.reduce((sum, t) => {
       const currentPrice = currentPrices[t.symbol] ?? t.entryPrice;
-      return sum + (currentPrice - t.entryPrice) * t.shares;
+      const pnl = t.side === "short"
+        ? (t.entryPrice - currentPrice) * t.shares
+        : (currentPrice - t.entryPrice) * t.shares;
+      return sum + pnl;
     }, 0);
 
     const realizedPnl = allTrades
@@ -129,7 +132,8 @@ export async function checkRisk(
     }
 
     const tradeValue = shares * entryPrice;
-    const positionPct = tradeValue / metrics.equity;
+    const safeEquity = metrics.equity > 0 ? metrics.equity : 1;
+    const positionPct = tradeValue / safeEquity;
 
     if (positionPct > settings.maxPositionSize) {
       const maxShares = Math.floor((metrics.equity * settings.maxPositionSize) / entryPrice);
@@ -175,12 +179,20 @@ export async function enforceStopLosses(currentPrices: Record<string, number>): 
     const currentPrice = currentPrices[trade.symbol];
     if (!currentPrice) continue;
 
-    const hitStopLoss = trade.side === "long" && currentPrice <= trade.stopLoss;
-    const hitTakeProfit = trade.takeProfit && trade.side === "long" && currentPrice >= trade.takeProfit;
+    const isLong = trade.side !== "short";
+    const hitStopLoss = isLong
+      ? currentPrice <= trade.stopLoss
+      : currentPrice >= trade.stopLoss;
+    const hitTakeProfit = !!trade.takeProfit && (isLong
+      ? currentPrice >= trade.takeProfit
+      : currentPrice <= trade.takeProfit);
 
     if (hitStopLoss || hitTakeProfit) {
-      const realizedPnl = (currentPrice - trade.entryPrice) * trade.shares;
-      const realizedPnlPercent = (realizedPnl / (trade.entryPrice * trade.shares)) * 100;
+      const costBasis = trade.entryPrice * trade.shares;
+      const realizedPnl = isLong
+        ? (currentPrice - trade.entryPrice) * trade.shares
+        : (trade.entryPrice - currentPrice) * trade.shares;
+      const realizedPnlPercent = costBasis > 0 ? (realizedPnl / costBasis) * 100 : 0;
       const reason = hitTakeProfit ? "Take Profit" : "Stop Loss";
 
       await db.update(tradesTable).set({

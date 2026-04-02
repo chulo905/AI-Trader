@@ -7,8 +7,15 @@ export interface ChronosForecast {
   generatedAt: string;
 }
 
+export interface ChronosForecastResponse extends ChronosForecast {
+  available: boolean;
+  error?: string;
+}
+
 const chronosCache = new Map<string, { data: ChronosForecast; expiresAt: number }>();
+const chronosFailureCache = new Map<string, { error: string; expiresAt: number }>();
 const CHRONOS_CACHE_TTL = 30 * 60 * 1000;
+const CHRONOS_FAILURE_TTL = 5 * 60 * 1000;
 
 const HF_CHRONOS_MODEL = "amazon/chronos-t5-small";
 const HF_INFERENCE_URL = `https://router.huggingface.co/hf-inference/models/${HF_CHRONOS_MODEL}`;
@@ -113,10 +120,20 @@ export async function getChronosForecast(
   const cached = chronosCache.get(symbol);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
 
+  const failure = chronosFailureCache.get(symbol);
+  if (failure && failure.expiresAt > Date.now()) {
+    throw new Error(failure.error);
+  }
+
   const prices = closingPrices.slice(-64);
 
-  const forecast = await callChronos(prices);
-
-  chronosCache.set(symbol, { data: forecast, expiresAt: Date.now() + CHRONOS_CACHE_TTL });
-  return forecast;
+  try {
+    const forecast = await callChronos(prices);
+    chronosCache.set(symbol, { data: forecast, expiresAt: Date.now() + CHRONOS_CACHE_TTL });
+    return forecast;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Chronos failed";
+    chronosFailureCache.set(symbol, { error: msg, expiresAt: Date.now() + CHRONOS_FAILURE_TTL });
+    throw err;
+  }
 }
