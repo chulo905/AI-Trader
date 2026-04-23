@@ -72,12 +72,15 @@ pnpm install
 
 ### Environment Variables
 
-Create a `.env` file (or set these in your hosting environment):
+Both the API server and frontend require `PORT` to be set — neither has a default and both will throw if it is missing. The frontend also requires `BASE_PATH`.
 
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/aitrader
-OPENAI_API_KEY=sk-...
-SESSION_SECRET=any-random-string
+Set these in your shell (or a `.env`-loading tool like `direnv`):
+
+```bash
+# Shared — needed by the API server
+export DATABASE_URL="postgresql://user:password@localhost:5432/aitrader"
+export OPENAI_API_KEY="sk-..."
+export SESSION_SECRET="any-random-string"
 ```
 
 ### Database Setup
@@ -88,15 +91,20 @@ pnpm --filter @workspace/db run db:push
 
 ### Run in Development
 
-Open two terminals (or use a process manager):
+Open **two terminals** and set the required vars inline:
 
 ```bash
-# Terminal 1 — API server (port from $PORT env var, default 3001)
-pnpm --filter @workspace/api-server run dev
+# Terminal 1 — API server on port 3001
+PORT=3001 pnpm --filter @workspace/api-server run dev
 
-# Terminal 2 — Frontend (port from $PORT env var, default 5173)
-pnpm --filter @workspace/trading-terminal run dev
+# Terminal 2 — Frontend on port 5173, served at the root path
+PORT=5173 BASE_PATH=/ pnpm --filter @workspace/trading-terminal run dev
 ```
+
+Then open **http://localhost:5173** in your browser.
+
+> **Note:** The frontend's WebSocket proxy expects the API server at `ws://localhost:8080`.
+> If you change the API port, update `server.proxy` in `artifacts/trading-terminal/vite.config.ts` to match.
 
 ---
 
