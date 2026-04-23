@@ -86,7 +86,7 @@ export SESSION_SECRET="any-random-string"
 ### Database Setup
 
 ```bash
-pnpm --filter @workspace/db run db:push
+pnpm --filter @workspace/db run push
 ```
 
 ### Run in Development
@@ -94,8 +94,8 @@ pnpm --filter @workspace/db run db:push
 Open **two terminals** and set the required vars inline:
 
 ```bash
-# Terminal 1 — API server on port 3001
-PORT=3001 pnpm --filter @workspace/api-server run dev
+# Terminal 1 — API server on port 8080 (WebSocket proxy in vite.config.ts points here)
+PORT=8080 pnpm --filter @workspace/api-server run dev
 
 # Terminal 2 — Frontend on port 5173, served at the root path
 PORT=5173 BASE_PATH=/ pnpm --filter @workspace/trading-terminal run dev
@@ -103,8 +103,9 @@ PORT=5173 BASE_PATH=/ pnpm --filter @workspace/trading-terminal run dev
 
 Then open **http://localhost:5173** in your browser.
 
-> **Note:** The frontend's WebSocket proxy expects the API server at `ws://localhost:8080`.
-> If you change the API port, update `server.proxy` in `artifacts/trading-terminal/vite.config.ts` to match.
+> **Why port 8080 for the API?** The frontend proxies WebSocket connections to `ws://localhost:8080`
+> (hardcoded in `artifacts/trading-terminal/vite.config.ts`). The API's HTTP and WebSocket servers
+> share the same port, so the API must listen on 8080 for live price streaming to work.
 
 ---
 
