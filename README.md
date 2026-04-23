@@ -4,6 +4,18 @@ A beginner-friendly, Bloomberg-style trading terminal powered by AI. The AI Auto
 
 ---
 
+## Screenshots
+
+**Dashboard** — portfolio snapshot, market movers, and open positions at a glance:
+
+![Dashboard](screenshots/dashboard.jpg)
+
+**AI Pilot** — enter any ticker and the AI returns a BUY/SELL/HOLD with confidence score, stop-loss, take-profit, and a complete trade plan:
+
+![AI Pilot](screenshots/ai-pilot.jpg)
+
+---
+
 ## Features
 
 | Page | What it does |
@@ -76,7 +88,7 @@ pnpm --filter @workspace/db run db:push
 
 ### Run in Development
 
-Open three terminals (or use a process manager):
+Open two terminals (or use a process manager):
 
 ```bash
 # Terminal 1 — API server (port from $PORT env var, default 3001)
